@@ -1,0 +1,21 @@
+{
+  "model": "perplexity",
+  "mode": "on",
+  "questionId": "disc_recruiter:before",
+  "questionText": "(seeded)",
+  "answer": "I couldn't find a clearly identifiable person by name for this. There are many product managers in London working in payments, but I don't have a specific, well-sourced individual to recommend.",
+  "sources": [],
+  "verdict": {
+    "candidate_named": false,
+    "identity_correct": false,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 0,
+    "sources": [],
+    "evidence_quality": "none"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": false
+}

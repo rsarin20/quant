@@ -1,0 +1,22 @@
+{
+  "model": "perplexity",
+  "mode": "off",
+  "questionId": "disc_recruiter:before",
+  "questionText": "(seeded)",
+  "answer": "I don't have reliable, specific information about individual senior product managers in London from memory, and I won't guess at names — doing so risks inventing or misattributing people.",
+  "sources": [],
+  "verdict": {
+    "candidate_named": false,
+    "identity_correct": false,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 0,
+    "sources": [],
+    "evidence_quality": "none"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": true,
+  "degradedReason": "Seeded example of best-effort memory mode. Sonar is always search-grounded; retrieval can't be fully disabled via the API."
+}

@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.log
+.DS_Store
+next-env.d.ts
+*.tsbuildinfo
+# Runtime-generated candidate profiles & cache (seed data is committed separately)
+/data/profiles/*
+/data/cache/*
+!/data/profiles/.gitkeep
+!/data/cache/.gitkeep

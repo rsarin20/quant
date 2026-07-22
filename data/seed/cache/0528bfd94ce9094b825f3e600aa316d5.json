@@ -1,0 +1,31 @@
+{
+  "model": "perplexity",
+  "mode": "on",
+  "questionId": "acc_aboutdomain:after",
+  "questionText": "(seeded)",
+  "answer": "Jane Okafor is a Senior Product Manager at Northwind Payments in London, working on real-time payments fraud systems. Previously a PM at Monzo. She holds an MEng in Computing from Imperial College London and an ACAMS certification.",
+  "sources": [
+    {
+      "url": "http://localhost:3000/jane-okafor"
+    },
+    {
+      "url": "http://localhost:3000/jane-okafor/agent.json"
+    }
+  ],
+  "verdict": {
+    "candidate_named": true,
+    "identity_correct": true,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 2,
+    "sources": [
+      "http://localhost:3000/jane-okafor",
+      "http://localhost:3000/jane-okafor/agent.json"
+    ],
+    "evidence_quality": "moderate"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": false
+}

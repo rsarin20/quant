@@ -1,0 +1,21 @@
+{
+  "model": "perplexity",
+  "mode": "on",
+  "questionId": "disc_specialty:before",
+  "questionText": "(seeded)",
+  "answer": "I can describe the area, but I don't have specific named people I can confidently attribute to real-time payments fraud systems.",
+  "sources": [],
+  "verdict": {
+    "candidate_named": false,
+    "identity_correct": false,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 0,
+    "sources": [],
+    "evidence_quality": "none"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": false
+}

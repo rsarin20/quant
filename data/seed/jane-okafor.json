@@ -1,0 +1,76 @@
+{
+  "slug": "jane-okafor",
+  "name": "Jane Okafor",
+  "currentRole": "Senior Product Manager",
+  "currentCompany": "Northwind Payments",
+  "location": "London, UK",
+  "domain": "payments / fintech PM",
+  "specialty": "real-time payments fraud systems",
+  "targetRole": "Director of Product, Risk",
+  "claimedAchievement": "cut real-time payments fraud losses by 40%",
+  "experience": [
+    {
+      "title": "Senior Product Manager",
+      "company": "Northwind Payments",
+      "startDate": "2021",
+      "endDate": "Present",
+      "bullets": [
+        "Led the real-time fraud scoring platform from 120ms → 45ms p99 latency, 2023",
+        "Cut fraud losses 40% year-over-year by shipping a graph-based mule-account detector, 2023",
+        "Owned the Faster Payments risk roadmap across a team of 9 engineers and 2 data scientists"
+      ]
+    },
+    {
+      "title": "Product Manager",
+      "company": "Monzo",
+      "startDate": "2018",
+      "endDate": "2021",
+      "bullets": [
+        "Shipped transaction-risk decisioning covering 4M+ accounts",
+        "Reduced false-positive card declines 22% while holding fraud flat, 2020"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Imperial College London",
+      "degree": "MEng",
+      "field": "Computing",
+      "year": "2015"
+    }
+  ],
+  "skills": [
+    "real-time payments",
+    "fraud detection",
+    "risk decisioning",
+    "product management",
+    "SQL",
+    "experimentation",
+    "graph analytics"
+  ],
+  "credentials": [
+    "ACAMS (Certified Anti-Money Laundering Specialist)"
+  ],
+  "publicWork": [
+    {
+      "kind": "talk",
+      "title": "Sub-50ms fraud scoring for instant payments (Money20/20 Europe)",
+      "url": "https://example.com/talks/m2020-jane-okafor",
+      "date": "2023"
+    },
+    {
+      "kind": "writing",
+      "title": "Why graph features beat rules for mule detection",
+      "url": "https://example.com/blog/graph-mule-detection",
+      "date": "2022"
+    }
+  ],
+  "sameAs": [
+    "https://github.com/janeokafor",
+    "https://www.linkedin.com/in/jane-okafor-payments",
+    "https://janeokafor.dev"
+  ],
+  "groundTruthNotes": "Jane Okafor is a payments/fintech Senior PM in London (Northwind Payments, formerly Monzo), specializing in real-time payments fraud. NOT the cardiologist Dr. Jane Okafor in Lagos, and NOT the amateur footballer of the same name. Her signature result is a 40% cut in real-time payments fraud losses in 2023.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "version": 1
+}

@@ -1,0 +1,31 @@
+{
+  "model": "perplexity",
+  "mode": "on",
+  "questionId": "disc_specialty:after",
+  "questionText": "(seeded)",
+  "answer": "Jane Okafor is known for work in real-time payments fraud systems — her profile documents a graph-based mule-account detector and sub-50ms fraud scoring for instant payments, presented at Money20/20 Europe (2023).",
+  "sources": [
+    {
+      "url": "http://localhost:3000/jane-okafor"
+    },
+    {
+      "url": "https://example.com/talks/m2020-jane-okafor"
+    }
+  ],
+  "verdict": {
+    "candidate_named": true,
+    "identity_correct": true,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 2,
+    "sources": [
+      "http://localhost:3000/jane-okafor",
+      "https://example.com/talks/m2020-jane-okafor"
+    ],
+    "evidence_quality": "moderate"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": false
+}

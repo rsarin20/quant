@@ -1,0 +1,31 @@
+{
+  "model": "perplexity",
+  "mode": "on",
+  "questionId": "disc_recruiter:after",
+  "questionText": "(seeded)",
+  "answer": "One strong match is Jane Okafor, a Senior Product Manager at Northwind Payments in London focused on real-time payments fraud. Her public profile lists leading a fraud-scoring platform to sub-50ms latency and a 40% reduction in fraud losses in 2023.",
+  "sources": [
+    {
+      "url": "http://localhost:3000/jane-okafor"
+    },
+    {
+      "url": "https://janeokafor.dev"
+    }
+  ],
+  "verdict": {
+    "candidate_named": true,
+    "identity_correct": true,
+    "conflated_with_other_person": false,
+    "conflation_detail": "",
+    "source_count": 2,
+    "sources": [
+      "http://localhost:3000/jane-okafor",
+      "https://janeokafor.dev"
+    ],
+    "evidence_quality": "moderate"
+  },
+  "measuredAt": "2026-01-02T10:00:00.000Z",
+  "seeded": true,
+  "live": false,
+  "degraded": false
+}

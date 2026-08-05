@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProfile, saveProfile, listProfiles } from "@/lib/store";
+import { getProfile, saveProfile, listProfiles, deleteProfile } from "@/lib/store";
 import { slugify } from "@/lib/slug";
 import type { Profile } from "@/lib/types";
+
+// Slugs that ship as seed data — protected from deletion via the API.
+const SEED_SLUGS = new Set(["jane-okafor"]);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,14 +47,25 @@ export async function GET(req: NextRequest) {
 // cached Mirror results invalidate (cache key includes version).
 export async function POST(req: NextRequest) {
   try {
-    const incoming = (await req.json()) as Partial<Profile>;
+    const incoming = (await req.json()) as Partial<Profile> & { consent?: boolean };
     if (!incoming.name || !incoming.name.trim()) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    }
+    // Consent gate: we publish a real person's page to the open web, so require
+    // explicit confirmation on first publish (existing profiles keep consent).
+    const slugForCheck = (incoming.slug && incoming.slug.trim()) || slugify(incoming.name);
+    const alreadyExists = await getProfile(slugForCheck);
+    if (!alreadyExists && !incoming.consent) {
+      return NextResponse.json(
+        { error: "Please confirm this is you (or that you have the right to publish it) before generating a public profile." },
+        { status: 400 }
+      );
     }
     const slug = (incoming.slug && incoming.slug.trim()) || slugify(incoming.name);
 
     const existing = await getProfile(slug);
-    const merged: Profile = { ...EMPTY, ...(existing || {}), ...incoming, slug };
+    const { consent: _consent, ...profileFields } = incoming;
+    const merged: Profile = { ...EMPTY, ...(existing || {}), ...profileFields, slug };
 
     if (existing) {
       // Bump version only if judge/mirror-relevant content actually changed.
@@ -72,6 +86,21 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// DELETE /api/profile?slug=...  -> unpublish + remove a candidate the user
+// created. Seeded demo candidates are protected.
+export async function DELETE(req: NextRequest) {
+  const slug = req.nextUrl.searchParams.get("slug");
+  if (!slug) return NextResponse.json({ error: "slug required" }, { status: 400 });
+  if (SEED_SLUGS.has(slug)) {
+    return NextResponse.json(
+      { error: "The seeded demo candidate can't be deleted." },
+      { status: 403 }
+    );
+  }
+  await deleteProfile(slug);
+  return NextResponse.json({ ok: true, slug });
 }
 
 // Content fields that affect what the Mirror measures. Editing these bumps the

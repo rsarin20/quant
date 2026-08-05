@@ -23,6 +23,8 @@ export function FixFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [gen, setGen] = useState<GenResult | null>(null);
+  // Existing (already-published) profiles are treated as previously consented.
+  const [consent, setConsent] = useState<boolean>(Boolean(initialProfile));
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -52,7 +54,7 @@ export function FixFlow({
       const saveRes = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({ ...profile, consent }),
       });
       const saved = await saveRes.json();
       if (!saveRes.ok) throw new Error(saved.error || "Save failed");
@@ -108,6 +110,8 @@ export function FixFlow({
           profile={profile}
           setProfile={setProfile}
           busy={busy}
+          consent={consent}
+          setConsent={setConsent}
           onBack={() => setStep("drop")}
           onGenerate={saveAndGenerate}
         />

@@ -19,6 +19,10 @@ export type RunOptions = {
   // the "after" state. Absent = the "before" state. Folded into the cache key
   // so before/after results never collide.
   contextUrl?: string;
+  // Invoked immediately before a real (paid) model call — after a cache miss.
+  // Returns ok:false to block the live call (rate/spend limit). Cache/seed hits
+  // never reach here, so they're always free.
+  guard?: () => Promise<{ ok: boolean; reason?: string }>;
 };
 
 export async function runMirrorQuestion(
@@ -38,6 +42,29 @@ export async function runMirrorQuestion(
   }
 
   const measuredAt = new Date().toISOString();
+
+  // Cache missed → a live call is imminent. Enforce spend/rate limits now, so
+  // only real paid calls are counted.
+  if (opts.guard) {
+    const g = await opts.guard();
+    if (!g.ok) {
+      return {
+        model: "perplexity",
+        mode,
+        questionId,
+        questionText,
+        answer: "",
+        sources: [],
+        verdict: null,
+        measuredAt,
+        seeded: false,
+        live: false,
+        degraded: true,
+        degradedReason: g.reason || "Rate limited.",
+        error: "rate_limited",
+      };
+    }
+  }
 
   let result: MirrorResult;
   try {

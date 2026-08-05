@@ -6,7 +6,7 @@
   "answer": "Per her public profile: Senior Product Manager at Northwind Payments (2021–present), previously Product Manager at Monzo (2018–2021). Focus on real-time payments fraud and risk decisioning. MEng Computing, Imperial College London (2015). Spoke at Money20/20 Europe (2023).",
   "sources": [
     {
-      "url": "http://localhost:3000/jane-okafor"
+      "url": "https://quant-sandy.vercel.app/jane-okafor"
     },
     {
       "url": "https://github.com/janeokafor"
@@ -19,7 +19,7 @@
     "conflation_detail": "",
     "source_count": 2,
     "sources": [
-      "http://localhost:3000/jane-okafor",
+      "https://quant-sandy.vercel.app/jane-okafor",
       "https://github.com/janeokafor"
     ],
     "evidence_quality": "moderate"

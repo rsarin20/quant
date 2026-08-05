@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProfile } from "@/lib/store";
 import { runMirrorQuestion } from "@/lib/mirror";
 import { PRESET_QUESTIONS } from "@/lib/questions";
+import { guardLiveCall } from "@/lib/ratelimit";
 import type { Mode } from "@/lib/types";
+
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,9 +61,11 @@ export async function POST(req: NextRequest) {
       template = preset.template;
     }
 
+    const ip = clientIp(req);
     const result = await runMirrorQuestion(profile, qId, template, mode, {
       force: Boolean(force),
       contextUrl: contextUrl?.trim() || undefined,
+      guard: () => guardLiveCall(ip),
     });
     return NextResponse.json({ result });
   } catch (e) {

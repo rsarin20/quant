@@ -6,7 +6,7 @@
   "answer": "Jane Okafor, Senior PM at Northwind Payments, is credited with cutting real-time payments fraud losses by roughly 40% in 2023 via a graph-based mule-account detector, according to her profile and a related write-up.",
   "sources": [
     {
-      "url": "http://localhost:3000/jane-okafor"
+      "url": "https://quant-sandy.vercel.app/jane-okafor"
     },
     {
       "url": "https://example.com/blog/graph-mule-detection"
@@ -19,7 +19,7 @@
     "conflation_detail": "",
     "source_count": 2,
     "sources": [
-      "http://localhost:3000/jane-okafor",
+      "https://quant-sandy.vercel.app/jane-okafor",
       "https://example.com/blog/graph-mule-detection"
     ],
     "evidence_quality": "moderate"

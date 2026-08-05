@@ -11,7 +11,11 @@ import { FixFlow } from "@/components/FixFlow";
 import { PRESET_QUESTIONS, interpolate } from "@/lib/questions";
 
 type ActiveQ = { id: string; text: string; questionId: string; customText?: string };
-type Status = { live: { perplexity: boolean; judge: boolean }; appUrl: string } | null;
+type Status = {
+  live: { perplexity: boolean; judge: boolean };
+  appUrl: string;
+  storage?: "kv" | "ephemeral" | "local";
+} | null;
 
 export default function Home() {
   const [status, setStatus] = useState<Status>(null);
@@ -164,6 +168,19 @@ export default function Home() {
     }
   }
 
+  async function unpublishActive() {
+    if (!active) return;
+    if (active.slug === "jane-okafor") {
+      alert("The seeded demo candidate can't be deleted.");
+      return;
+    }
+    if (!confirm(`Unpublish and delete ${active.name}'s profile? Their public page will stop working.`)) return;
+    await fetch(`/api/profile?slug=${encodeURIComponent(active.slug)}`, { method: "DELETE" });
+    const remaining = profiles.filter((p) => p.slug !== active.slug);
+    setProfiles(remaining);
+    setActive(remaining[0] || null);
+  }
+
   const activeIds = useMemo(() => new Set(activeQs.map((q) => q.id)), [activeQs]);
   const rows: QuestionRow[] = activeQs.map((q) => ({ id: q.id, text: q.text }));
   const currentCells = useMemo(() => {
@@ -201,6 +218,15 @@ export default function Home() {
             view public profile ↗
           </a>
         )}
+        {active && active.slug !== "jane-okafor" && (
+          <button
+            onClick={unpublishActive}
+            className="text-xs text-bad hover:underline"
+            title="Delete this candidate and take down their public page"
+          >
+            unpublish &amp; delete
+          </button>
+        )}
         <div className="ml-auto flex gap-1 rounded-lg bg-panel2 p-1">
           <TabBtn active={tab === "mirror"} onClick={() => setTab("mirror")}>
             The Mirror
@@ -210,6 +236,15 @@ export default function Home() {
           </TabBtn>
         </div>
       </div>
+
+      {status?.storage === "ephemeral" && (
+        <div className="mt-3 rounded-lg border border-warn/40 bg-warn/10 p-3 text-xs text-warn">
+          <span className="font-semibold">Storage is ephemeral.</span> Generated profiles
+          are written to a temporary disk and won&apos;t survive restarts. Connect a Vercel
+          KV store to the project (Storage → Create → KV) for durable, private persistence —
+          the app switches to it automatically.
+        </div>
+      )}
 
       {tab === "mirror" ? (
         <div className="mt-6 space-y-5">

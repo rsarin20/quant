@@ -8,12 +8,16 @@ export function ConfirmFields({
   profile,
   setProfile,
   busy,
+  consent,
+  setConsent,
   onBack,
   onGenerate,
 }: {
   profile: Profile;
   setProfile: (p: Profile) => void;
   busy: boolean;
+  consent: boolean;
+  setConsent: (v: boolean) => void;
   onBack: () => void;
   onGenerate: () => void;
 }) {
@@ -150,13 +154,30 @@ export function ConfirmFields({
         />
       </div>
 
+      {/* Consent — we publish a real person's page to the open web. */}
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel2 p-4">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-[#5b8cff]"
+        />
+        <span className="text-xs leading-relaxed text-muted">
+          I confirm this profile is <span className="text-white/80">me</span>, or that I
+          have the right to publish it. I understand a public page at a live URL will be
+          generated so AI assistants can find and read it — and that I can unpublish and
+          delete it at any time.
+        </span>
+      </label>
+
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="text-sm text-muted hover:text-white">
           ← Back
         </button>
         <button
-          disabled={busy || !profile.name.trim()}
+          disabled={busy || !profile.name.trim() || !consent}
           onClick={onGenerate}
+          title={!consent ? "Confirm the checkbox above to publish" : ""}
           className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
         >
           {busy ? "Generating…" : "Generate profile & artifacts →"}

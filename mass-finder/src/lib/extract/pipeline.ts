@@ -184,6 +184,20 @@ export async function extractSchedule(
   if (!crawledPages.length) return finish();
 
   // ── Layer 3: deterministic text pass ───────────────────────────────────
+  /**
+   * A cap per page, and the most reliable listing detector we have.
+   *
+   * Vocabulary tests for "is this page about many parishes" can be evaded by a
+   * listing that names churches without the word "parish" — Dublin's `/parishes/`
+   * index slipped through exactly that way and contributed other churches' rows.
+   * The count of extracted Masses cannot be evaded: a single parish publishes a
+   * dozen or two Mass times across a week, and anything producing far more than
+   * that is describing more than one church. Dropping the whole page is right
+   * rather than truncating it, because there is no way to tell which of the rows
+   * were this church's.
+   */
+  const MAX_RULES_PER_PAGE = 24;
+
   for (const page of crawledPages) {
     const source: SourceRef = {
       kind: /\.pdf($|\?)/i.test(page.finalUrl)
@@ -195,7 +209,14 @@ export async function extractSchedule(
       fetchedAt: page.fetchedAt,
       detail: page.title,
     };
-    rules.push(...extractRulesFromText(page.text, { churchId: church.id, source }));
+    const fromPage = extractRulesFromText(page.text, { churchId: church.id, source });
+    if (fromPage.length > MAX_RULES_PER_PAGE) {
+      problems.push(
+        `${page.finalUrl} yielded ${fromPage.length} Mass times, which is more than one church has — it appears to list several parishes, so none of them were used.`,
+      );
+      continue;
+    }
+    rules.push(...fromPage);
   }
 
   // ── Layer 4: Claude, verified against the same pages ───────────────────

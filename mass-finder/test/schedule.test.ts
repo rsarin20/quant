@@ -175,6 +175,62 @@ test('reads a realistic parish page into rules', () => {
   assert.ok(rules.every((r) => r.source.quote && r.source.quote.length > 0));
 });
 
+test('the Divine Office, Confession and Adoration are not reported as Mass', () => {
+  // These are the exact lines from a real Dublin parish's timetable page that the
+  // first live deployment mis-read. Before the fix, the app's headline answer was
+  // "07:00" — which this page shows is Lauds, not Mass. Sending somebody to
+  // Morning Prayer believing it is Mass is the failure this app exists to avoid.
+  const realPage = [
+    'Mass & Confession times',
+    'Mass times',
+    'Sunday: 9:30 a.m., 11:30 a.m.,* and 8:30 p.m.',
+    'Saturday: 9:30 a.m.,** 11:00 a.m., and 7:00 p.m. (Spanish- Vigil Mass)',
+    'Confession times',
+    'Friday: after 7:25 a.m. Mass, 10:45 a.m. to 11:00 a.m. & 8:15 p.m. to 9:00 p.m.',
+    'Saturday: 11:30 a.m. to 1:00 p.m., and 3:00 p.m. to 6:00 p.m. (5:00 p.m. to 6:00 p.m. confessions in English & Spanish)',
+    'Divine Office',
+    'Monday to Friday: Lauds at 7:00 a.m., and Vespers at 6:00 p.m.',
+    'Saturday: Lauds at 9:00 a.m., and Vespers at 6:00 p.m.',
+    'Sunday: Matins & Lauds at 8:40 a.m., and Vespers at 6:00 p.m.',
+    'Adoration',
+    'Every Friday from October to June from 8:00 p.m. to 9:00 p.m., followed by Compline (night prayer)',
+  ].join('\n');
+
+  const rules = extractRulesFromText(realPage, { churchId: 'c', source });
+  const times = rules.map((r) => r.time);
+
+  // The genuine Sunday and Saturday Masses survive.
+  assert.ok(times.includes('09:30'), 'the 9:30 Sunday Mass should be found');
+  assert.ok(times.includes('11:30'), 'the 11:30 Sunday Mass should be found');
+  assert.ok(times.includes('20:30'), 'the 8:30pm Sunday Mass should be found');
+  assert.ok(times.includes('19:00'), 'the Saturday 7pm vigil should be found');
+
+  // None of the non-Mass services do.
+  assert.equal(times.includes('07:00'), false, 'Lauds must not become a 7:00 Mass');
+  assert.equal(times.includes('18:00'), false, 'Vespers must not become a 6:00pm Mass');
+  assert.equal(times.includes('08:40'), false, 'Matins must not become an 8:40 Mass');
+  assert.equal(times.includes('10:45'), false, 'a Confession slot must not become a Mass');
+  assert.equal(times.includes('21:00'), false, 'a Confession slot must not become a Mass');
+  assert.equal(times.includes('13:00'), false, 'a Confession slot must not become a Mass');
+  assert.equal(times.includes('15:00'), false, 'a Confession slot must not become a Mass');
+  assert.equal(times.includes('20:00'), false, 'Adoration must not become a Mass');
+
+  // The Spanish vigil keeps its language and its anticipated status.
+  const vigil = rules.find((r) => r.time === '19:00');
+  assert.equal(vigil!.language, 'es');
+  assert.equal(vigil!.anticipates, 'next-day');
+});
+
+test('a line mentioning Mass only in passing yields nothing', () => {
+  assert.equal(
+    extractRulesFromText(
+      'Mass times\nConfessions: Saturday after the 10:00 a.m. Mass until 11:00 a.m.',
+      { churchId: 'c', source },
+    ).length,
+    0,
+  );
+});
+
 test('verbatim time verification accepts the formats parishes really use', () => {
   assert.equal(timeAppearsInText('18:30', 'Saturday Vigil 6.30pm'), true);
   assert.equal(timeAppearsInText('10:00', 'Sunday at 10am'), true);

@@ -55,6 +55,77 @@ const MASS_WORDS = [
   'qurbono',
 ];
 
+/**
+ * Services that are **not** Mass.
+ *
+ * A parish's timetable page lists Mass alongside Confession, Adoration and the
+ * Divine Office, usually in the same table. Live testing against a real parish
+ * showed the cost of ignoring that: the line
+ *
+ *   "Monday to Friday: Lauds at 7:00 a.m., and Vespers at 6:00 p.m."
+ *
+ * became a 7:00 "Mass", and the app's headline answer sent the reader to Morning
+ * Prayer. Confession blocks did the same — "Friday: after 7:25 a.m. Mass, 10:45
+ * a.m. to 11:00 a.m." yielded three imaginary Masses, because the line does
+ * mention Mass, just not as the thing being scheduled.
+ *
+ * So a line naming any of these is skipped outright, even when it also says
+ * "Mass". That will occasionally lose a real Mass from a line that lists both —
+ * and that is the right trade: this app's premise is that a wrong time is worse
+ * than a missing one, because a missing time shows "ring the parish" while a
+ * wrong one sends somebody on a journey to the wrong service. The language-model
+ * layer reads these pages properly when it is configured.
+ */
+const NON_MASS_WORDS = [
+  // The sacrament of penance.
+  'confession',
+  'confessions',
+  'reconciliation',
+  'confesion',
+  'confesiones',
+  'confesión',
+  'confissão',
+  'confessione',
+  'beichte',
+  'spowied',
+  // Eucharistic devotions that are not Mass.
+  'adoration',
+  'adoración',
+  'adoracion',
+  'adoração',
+  'adorazione',
+  'exposition',
+  'benediction',
+  'holy hour',
+  'anbetung',
+  // The Liturgy of the Hours.
+  'lauds',
+  'vespers',
+  'compline',
+  'matins',
+  'morning prayer',
+  'evening prayer',
+  'night prayer',
+  'divine office',
+  'liturgy of the hours',
+  'vísperas',
+  'visperas',
+  'laudes',
+  // Other devotions.
+  'rosary',
+  'rosario',
+  'novena',
+  'stations of the cross',
+  'way of the cross',
+  'via crucis',
+  'chaplet',
+  'baptism',
+  'baptisms',
+  'wedding',
+  'weddings',
+  'funeral',
+];
+
 /** Words that mark a Mass as anticipated, in several languages. */
 const VIGIL_WORDS = ['vigil', 'vigilia', 'vigile', 'vorabendmesse', 'anticipata', 'anticipada'];
 
@@ -174,6 +245,15 @@ export function mentionsVigil(line: string): boolean {
   return VIGIL_WORDS.some((w) => lower.includes(w));
 }
 
+/**
+ * True when a line schedules something other than Mass. Such a line is skipped
+ * even if it also mentions Mass — see `NON_MASS_WORDS` for why.
+ */
+export function mentionsNonMassService(line: string): boolean {
+  const lower = line.toLowerCase();
+  return NON_MASS_WORDS.some((w) => new RegExp(`\\b${escape(w)}`, 'i').test(lower));
+}
+
 export interface HeuristicOptions {
   churchId: string;
   source: SourceRef;
@@ -203,15 +283,54 @@ export function extractRulesFromText(
   let massContextUntil = -1;
   let counter = 0;
 
+  /**
+   * Which section of the page we are in.
+   *
+   * Parish timetables are sectioned under headings, and the rows beneath a
+   * heading need not repeat it. A real page defeated line-by-line filtering
+   * exactly this way: under "Confession times" sat
+   * "Friday: after 7:25 a.m. Mass, 10:45 a.m. to 11:00 a.m." — a line that
+   * mentions Mass but schedules confessions, and whose times became three
+   * imaginary Masses. So a heading puts us in a section, and the section governs
+   * every row under it until the next heading.
+   */
+  let section: 'mass' | 'other' | 'unknown' = 'unknown';
+
   for (let i = 0; i < lines.length && rules.length < maxRules; i += 1) {
     const line = lines[i];
-    if (mentionsMass(line)) massContextUntil = i + 8;
+    const times = extractTimes(line);
+    const namesMass = mentionsMass(line);
+    const namesOther = mentionsNonMassService(line);
+
+    // A line naming a service but carrying no times is a heading.
+    if (!times.length) {
+      // "Mass & Confession times" is a Mass heading, so Mass wins a tie.
+      if (namesMass) {
+        section = 'mass';
+        massContextUntil = i + 8;
+      } else if (namesOther) {
+        section = 'other';
+      }
+      continue;
+    }
+
+    // Skip anything that schedules a different service. Checked before the Mass
+    // test, because such lines very often mention Mass in passing.
+    if (namesOther) continue;
+    // Inside a non-Mass section, skip the row outright. A passing mention of
+    // Mass must not rescue it: "Friday: after 7:25 a.m. Mass, 10:45 a.m. to
+    // 11:00 a.m." sits under "Confession times" and names Mass only to say when
+    // confessions start. Allowing that through was the bug. A parish that lists a
+    // genuine Mass under a Confession heading loses it here, which is the right
+    // way round — a missing time shows "ring the parish", a wrong one sends
+    // somebody to the wrong service.
+    if (section === 'other') continue;
 
     const weekdays = extractWeekdays(line);
-    const times = extractTimes(line);
-    if (!weekdays.length || !times.length) continue;
+    if (!weekdays.length) continue;
 
-    const inMassContext = mentionsMass(line) || i <= massContextUntil;
+    if (namesMass) massContextUntil = i + 8;
+    const inMassContext = namesMass || section === 'mass' || i <= massContextUntil;
     if (!inMassContext) continue;
 
     const language = detectLanguage(line);

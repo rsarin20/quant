@@ -9,7 +9,7 @@ import {
   type CrawlOptions,
   type FetchedPage,
 } from './crawl';
-import { crawlDirectoryForParish } from './directoryCrawl';
+import { crawlDirectoryForParish, looksLikeMultiParishListing } from './directoryCrawl';
 import { extractWithModel, isModelConfigured } from './llm';
 
 /**
@@ -126,6 +126,14 @@ export async function extractSchedule(
     // belongs to this church before we quote it. See `verifyPageIdentity`.
     const mustVerify = church.websiteSource === 'curated' || church.websiteSource === 'wikidata';
     for (const page of crawl.pages) {
+      // A listing of many parishes is never a source for one parish's times,
+      // however we arrived at it.
+      if (looksLikeMultiParishListing(page)) {
+        problems.push(
+          `${page.finalUrl} lists many parishes rather than ${church.name} alone, so we did not take times from it.`,
+        );
+        continue;
+      }
       if (mustVerify && !verifyPageIdentity(page, church.name)) {
         problems.push(
           `${page.finalUrl} does not mention ${church.name}, so we did not take any times from it.`,

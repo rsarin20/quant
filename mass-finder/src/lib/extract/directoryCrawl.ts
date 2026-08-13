@@ -62,6 +62,36 @@ export function scoreDirectoryLink(
   return Math.round(ratio * 100);
 }
 
+/** A URL with any fragment removed, for comparing "is this the same page". */
+function withoutHash(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Is this a page about many parishes rather than about one?
+ *
+ * The guard that `verifyPageIdentity` cannot provide. A diocesan listing mentions
+ * every parish in the diocese, so it passes an "does it mention this church" test
+ * trivially — and then donates two hundred parishes' Mass times to whichever church
+ * asked. The identity check answers "is this church on the page"; this answers "is
+ * this page *about* this church", which is the question that matters.
+ *
+ * Measured by how many parish-scale schedule blocks the page carries. One parish
+ * publishes a handful of Mass rows; a diocese publishes hundreds.
+ */
+export function looksLikeMultiParishListing(page: { text: string }): boolean {
+  const parishMentions = (page.text.match(/\bparish\b/gi) ?? []).length;
+  const vigilMentions = (page.text.match(/\bvigil\b/gi) ?? []).length;
+  // A single parish says "vigil" once or twice. Twelve means twelve parishes.
+  return parishMentions > 25 || vigilMentions > 8;
+}
+
 export interface DirectoryCrawlResult {
   pages: FetchedPage[];
   failures: Array<{ url: string; reason: string }>;
@@ -85,7 +115,14 @@ export async function crawlDirectoryForParish(
     const guess = directory.parishUrlPattern.replace('{slug}', slugifyParish(churchName));
     try {
       const page = await fetchPage(guess, opts);
-      if (verifyPageIdentity(page, churchName)) {
+      // The guess can redirect to the diocese's full listing, which would be just
+      // as wrong as reaching it by link.
+      if (looksLikeMultiParishListing(page)) {
+        rejected.push({
+          url: page.finalUrl,
+          reason: `${page.finalUrl} lists many parishes rather than this one`,
+        });
+      } else if (verifyPageIdentity(page, churchName)) {
         return { pages: [page], failures, rejected, directoryLabel: directory.label };
       }
       rejected.push({
@@ -127,7 +164,14 @@ export async function crawlDirectoryForParish(
     return { pages, failures, rejected, directoryLabel: directory.label };
   }
 
+  const indexKey = withoutHash(indexPage.finalUrl);
   const best = extractLinks(html, indexPage.finalUrl)
+    // A link that resolves back to the index is an in-page anchor, not a parish
+    // page. Following one hands the extractor the whole diocese's timetable —
+    // every parish's rows — and it attributes all of them to this church. That
+    // is how Dublin's pro-cathedral acquired five Sunday Masses belonging to
+    // five other parishes, quoted and sourced as if they were its own.
+    .filter((link) => withoutHash(link.url) !== indexKey)
     .map((link) => ({ link, score: scoreDirectoryLink(link, churchName) }))
     .filter((c) => c.score > 0)
     .sort((a, b) => b.score - a.score)
@@ -157,6 +201,14 @@ export async function crawlDirectoryForParish(
       continue;
     }
     const page = result.page!;
+    if (looksLikeMultiParishListing(page)) {
+      rejected.push({
+        url: page.finalUrl,
+        reason:
+          `${page.finalUrl} lists many parishes rather than this one, so its times were not used`,
+      });
+      continue;
+    }
     if (!verifyPageIdentity(page, churchName)) {
       rejected.push({
         url: page.finalUrl,

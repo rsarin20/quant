@@ -13,7 +13,10 @@ import {
 import { curatedFor, withCuratedWebsite } from '../src/lib/directory/registry';
 import { normaliseName } from '../src/lib/directory/types';
 import { scoreLink, verifyPageIdentity } from '../src/lib/extract/crawl';
-import { scoreDirectoryLink } from '../src/lib/extract/directoryCrawl';
+import {
+  looksLikeMultiParishListing,
+  scoreDirectoryLink,
+} from '../src/lib/extract/directoryCrawl';
 
 function church(overrides: Partial<Church> = {}): Church {
   return {
@@ -282,4 +285,25 @@ test('a nav link reading only “Times” is followed', () => {
   assert.ok(
     scoreLink({ url: 'https://p.example/donate', text: 'Donate' }, 'https://p.example/') < 0,
   );
+});
+
+// ── A diocesan listing is never one parish's schedule ──────────────────────
+
+test('a page listing many parishes is refused as a source', () => {
+  // The failure this exists for: Dublin's diocesan Mass-times page lists every
+  // parish in the archdiocese, and its in-page anchors resolve back to the index
+  // itself. Following one handed the extractor two hundred parishes' rows, which
+  // it attributed to the pro-cathedral — five Sunday Masses belonging to five
+  // other churches, each quoted and sourced as if it were this church's own.
+  // `verifyPageIdentity` cannot catch this: a page naming every parish trivially
+  // names this one too.
+  const diocesanIndex = {
+    text: Array.from({ length: 40 }, (_, i) => `St Example ${i} Parish — 10am | 6pm Vigil`).join('\n'),
+  };
+  assert.equal(looksLikeMultiParishListing(diocesanIndex), true);
+
+  const oneParish = {
+    text: 'St Saviour\'s Parish. Sunday: 9:30am, 11:00am, 6:00pm Vigil on Saturday.',
+  };
+  assert.equal(looksLikeMultiParishListing(oneParish), false);
 });

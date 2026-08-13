@@ -296,5 +296,109 @@ export async function findChurchesNear(
   );
 }
 
+/**
+ * Fetch one church by its Mass Finder id, e.g. `osm:way/250738641`.
+ *
+ * A church's page must be a durable link. Somebody will bookmark the timetable
+ * for their own parish, or send it to a relative, and it has to work months
+ * later on a cold server that has never run a nearby search. Looking the church
+ * up in a cache built by a *previous* request fails exactly then — and on
+ * serverless it fails almost immediately, because the next request lands on a
+ * different instance with a different `/tmp`. So the detail path resolves the
+ * church from OpenStreetMap directly, by id.
+ *
+ * Returns `undefined` when the id is not one we issued or the element no longer
+ * exists (churches do close), and throws only if every mirror is unreachable.
+ */
+export async function fetchChurchById(
+  id: string,
+  opts: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
+): Promise<Church | undefined> {
+  const match = /^osm:(node|way|relation)\/(\d+)$/.exec(id);
+  if (!match) return undefined;
+  const [, type, osmId] = match;
+
+  const doFetch = opts.fetchImpl ?? fetch;
+  const query = `[out:json][timeout:20];\n${type}(${osmId});\nout center tags;`;
+  const fetchedAt = new Date().toISOString();
+  let lastError: unknown;
+  const attempted: string[] = [];
+
+  for (const endpoint of endpoints()) {
+    attempted.push(endpoint);
+    try {
+      const res = await doFetch(endpoint, {
+        method: 'POST',
+        body: new URLSearchParams({ data: query }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'MassFinder/0.1 (Catholic Mass times; +https://github.com/rsarin20/quant)',
+          Accept: 'application/json',
+        },
+        signal: opts.signal,
+      });
+      if (!res.ok) {
+        lastError = new Error(`${endpoint} returned ${res.status}`);
+        continue;
+      }
+      const body = (await res.json()) as { elements?: OverpassElement[] };
+      const element = body.elements?.[0];
+      if (!element) return undefined;
+      // Resolve without the Catholic-identification filter: the id came from us,
+      // so the church already passed that test once. Re-applying it would drop a
+      // legitimately-bookmarked church whose tags a mapper has since edited.
+      return elementToChurch(element, fetchedAt) ?? elementToChurchUnfiltered(element, fetchedAt);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw new OverpassUnavailableError(
+    `Could not reach any OpenStreetMap Overpass mirror: ${String(lastError)}`,
+    attempted,
+  );
+}
+
+/**
+ * Build a church from an element that no longer looks Catholic by tag or name.
+ * Marked `name-inferred` so the interface still warns the reader to check.
+ */
+function elementToChurchUnfiltered(
+  el: OverpassElement,
+  fetchedAt: string,
+): Church | undefined {
+  const tags = el.tags ?? {};
+  const lat = el.lat ?? el.center?.lat;
+  const lon = el.lon ?? el.center?.lon;
+  if (lat === undefined || lon === undefined) return undefined;
+  return {
+    id: `osm:${el.type}/${el.id}`,
+    name: tags.name ?? tags['name:en'] ?? 'Church (unnamed)',
+    lat,
+    lon,
+    timezone: timezoneFor(lat, lon),
+    countryCode: tags['addr:country'] || undefined,
+    address: {
+      street: tags['addr:street'],
+      housenumber: tags['addr:housenumber'],
+      city: tags['addr:city'],
+      postcode: tags['addr:postcode'],
+    },
+    phone: tags.phone ?? tags['contact:phone'],
+    website: tags.website ?? tags['contact:website'] ?? tags.url,
+    rite: riteFromDenomination(tags.denomination),
+    denominationRaw: tags.denomination,
+    identification: 'name-inferred',
+    sources: [
+      {
+        kind: 'openstreetmap',
+        url: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+        fetchedAt,
+        detail: 'Resolved by id; the tags no longer clearly say Catholic',
+      },
+    ],
+  };
+}
+
 /** Exposed for the offline test suite. */
 export const __testing = { elementToChurch, looksCatholicByName };

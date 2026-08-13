@@ -1,4 +1,8 @@
-import { findChurchesNear, OverpassUnavailableError } from './churches/overpass';
+import {
+  fetchChurchById,
+  findChurchesNear,
+  OverpassUnavailableError,
+} from './churches/overpass';
 import { reverseGeocodeCountry } from './churches/geocode';
 import type { LatLon } from './churches/geo';
 import { haversineMetres } from './churches/geo';
@@ -280,6 +284,28 @@ export async function churchDetail(
 
   const demo = demoChurchById(params.churchId);
   let church: Church | undefined = demo?.church ?? (await getChurch(params.churchId));
+
+  // Not cached — resolve it from OpenStreetMap by id, so a bookmarked or shared
+  // church link works on a cold server that never ran a nearby search.
+  if (!church && !demo && !isDemoMode()) {
+    try {
+      church = await fetchChurchById(params.churchId);
+      if (church) {
+        // The country decides the holy-day rules, so fill it in when the map
+        // data does not carry it rather than falling back to universal law.
+        if (!church.countryCode) {
+          const code = await reverseGeocodeCountry({ lat: church.lat, lon: church.lon });
+          if (code) church = { ...church, countryCode: code };
+        }
+        await putChurch(church);
+      }
+    } catch (err) {
+      notices.push(
+        `We could not reach OpenStreetMap to look this church up: ${String(err)}. Please try again in a few minutes.`,
+      );
+    }
+  }
+
   if (!church) return undefined;
 
   let schedule: ChurchSchedule | undefined;

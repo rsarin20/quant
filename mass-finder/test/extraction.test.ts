@@ -151,3 +151,24 @@ test('a time window is rejected however it is written', () => {
     assert.deepEqual(slots(line), [], line);
   }
 });
+
+// ── A qualifier belongs to one time, not to the whole line ─────────────────
+
+test('a language marker applies to the Mass it sits beside, not all of them', () => {
+  // Live output labelled all three of these Spanish, so a Spanish speaker would
+  // be sent to a 9:30 in English and an English speaker to a Spanish 7:00.
+  const rules = extract(
+    'Saturday: 9:30 a.m., 11:00 a.m., and 7:00 p.m. (Spanish- Vigil Mass)',
+  );
+  const byTime = new Map(rules.map((r) => [r.time, r.language]));
+  assert.equal(byTime.get('19:00'), 'es');
+  assert.equal(byTime.get('09:30'), undefined);
+  assert.equal(byTime.get('11:00'), undefined);
+});
+
+test('a language heading before every time applies to all of them', () => {
+  // "Spanish Masses: 9:00, 12:00" really does mean both.
+  const rules = extract('Spanish Masses on Sunday: 9:00 a.m., 12:00 p.m.');
+  assert.ok(rules.length >= 2);
+  assert.ok(rules.every((r) => r.language === 'es'));
+});

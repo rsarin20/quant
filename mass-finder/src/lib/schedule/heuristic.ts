@@ -183,10 +183,42 @@ const LANGUAGE_HINTS: Array<[string, RegExp]> = [
 ];
 
 function detectLanguage(line: string): string | undefined {
+  return detectLanguageAt(line)?.code;
+}
+
+/** The language marker on a line, with where it appears. */
+function detectLanguageAt(line: string): { code: string; at: number } | undefined {
   for (const [code, pattern] of LANGUAGE_HINTS) {
-    if (pattern.test(line)) return code;
+    const m = pattern.exec(line);
+    if (m) return { code, at: m.index };
   }
   return undefined;
+}
+
+/**
+ * Which of a line's times a qualifier belongs to.
+ *
+ * A marker applies to the nearest time, not to all of them. Live output showed
+ * why: the line "Saturday: 9:30 a.m., 11:00 a.m., and 7:00 p.m. (Spanish - Vigil
+ * Mass)" had labelled all three Masses Spanish, so a Spanish speaker would be sent
+ * to a 9:30 Mass in English, and someone who does not speak Spanish would be sent
+ * to the 7:00 without warning. Only the 7:00 is Spanish, and it is the one the
+ * marker sits beside.
+ *
+ * When the marker precedes every time it is a heading for the line — "Spanish
+ * Masses: 9:00, 12:00" — and then it does apply to all of them.
+ */
+function qualifierAppliesTo(
+  markerAt: number,
+  times: Array<{ time: string; at: number }>,
+): Set<string> {
+  if (times.length <= 1) return new Set(times.map((t) => t.time));
+  if (markerAt < times[0].at) return new Set(times.map((t) => t.time));
+  let nearest = times[0];
+  for (const t of times) {
+    if (Math.abs(t.at - markerAt) < Math.abs(nearest.at - markerAt)) nearest = t;
+  }
+  return new Set([nearest.time]);
 }
 
 /**
@@ -198,11 +230,29 @@ function detectLanguage(line: string): string | undefined {
  * dozens of imaginary Masses.
  */
 export function extractTimes(line: string): string[] {
-  const out: string[] = [];
+  return extractTimesWithPositions(line).map((t) => t.time);
+}
+
+/**
+ * The same times, each with where in the line it was written.
+ *
+ * The position is what lets a qualifier be attached to the time it belongs to
+ * rather than to every time on the line. A parish writing
+ *
+ *   "Saturday: 9:30 a.m., 11:00 a.m., and 7:00 p.m. (Spanish - Vigil Mass)"
+ *
+ * has one Spanish Mass, not three; the live site was labelling all three Spanish,
+ * which would send a Spanish speaker to a 9:30 Mass in English and an
+ * English speaker to a 7:00 Mass they cannot follow.
+ */
+export function extractTimesWithPositions(line: string): Array<{ time: string; at: number }> {
+  const out: Array<{ time: string; at: number }> = [];
   const lower = line.toLowerCase();
 
-  if (/\bnoon\b|\bmediod(í|i)a\b|\bmezzogiorno\b/.test(lower)) out.push('12:00');
-  if (/\bmidnight\b|\bmedianoche\b|\bmezzanotte\b|\bmitternacht\b/.test(lower)) out.push('00:00');
+  const noon = /\bnoon\b|\bmediod(í|i)a\b|\bmezzogiorno\b/.exec(lower);
+  if (noon) out.push({ time: '12:00', at: noon.index });
+  const midnight = /\bmidnight\b|\bmedianoche\b|\bmezzanotte\b|\bmitternacht\b/.exec(lower);
+  if (midnight) out.push({ time: '00:00', at: midnight.index });
 
   const pattern =
     /(\d{1,2})\s*(?:[:.h]\s*(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|am|pm)?(?=\b|\s|$)/gi;
@@ -224,10 +274,14 @@ export function extractTimes(line: string): string[] {
     // No meridiem and an hour that reads as afternoon on a parish schedule.
     // Times like "6:30" with no marker on a line that also says "evening" are
     // resolved below by the caller; here we keep the literal reading.
-    out.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    out.push({
+      time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+      at: m.index,
+    });
   }
 
-  return Array.from(new Set(out));
+  const seen = new Set<string>();
+  return out.filter((t) => (seen.has(t.time) ? false : (seen.add(t.time), true)));
 }
 
 /** Weekdays named in a line, expanding ranges like "Monday-Friday". */
@@ -390,7 +444,8 @@ export function extractRulesFromText(
 
   for (let i = 0; i < lines.length && rules.length < maxRules; i += 1) {
     const line = lines[i];
-    const times = extractTimes(line);
+    const positioned = extractTimesWithPositions(line);
+    const times = positioned.map((t) => t.time);
     const namesMass = mentionsMass(line);
     const namesOther = mentionsNonMassService(line);
 
@@ -458,7 +513,10 @@ export function extractRulesFromText(
     const inMassContext = namesMass || section === 'mass' || i <= massContextUntil;
     if (!inMassContext) continue;
 
-    const language = detectLanguage(line);
+    const marker = detectLanguageAt(line);
+    const spokenIn = marker
+      ? qualifierAppliesTo(marker.at, positioned)
+      : new Set<string>();
     const vigil = mentionsVigil(line);
 
     for (const time of times) {
@@ -476,7 +534,7 @@ export function extractRulesFromText(
         weekdays,
         time,
         anticipates,
-        language,
+        language: marker && spokenIn.has(time) ? marker.code : undefined,
         form: /tridentine|extraordinary form|usus antiquior|latin mass/i.test(line)
           ? 'traditional-latin'
           : undefined,

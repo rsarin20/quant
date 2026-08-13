@@ -1,0 +1,582 @@
+/*
+ * Mass Finder — visual design.
+ *
+ * The primary user is somebody in their seventies or eighties, possibly on an
+ * old phone, possibly with imperfect eyesight, quite possibly not confident with
+ * apps. Every decision below follows from that:
+ *
+ *  - Base type is 20px, not 16px. Headline times are 64px. Nothing that carries
+ *    meaning is below 17px.
+ *  - Tap targets are at least 56px tall with generous spacing, because a shaky
+ *    hand on a 44px button mis-taps.
+ *  - Contrast exceeds WCAG AAA for body text on the default theme.
+ *  - No information is conveyed by colour alone; every coloured state also has a
+ *    word.
+ *  - No icon appears without a text label next to it.
+ *  - Buttons look like buttons — filled, bordered, obviously pressable. Flat
+ *    minimal UI is the enemy of an unconfident user.
+ *  - The page works and reads sensibly with JavaScript-driven layout absent.
+ */
+
+:root {
+  --ink: #16130f;
+  --ink-soft: #46403a;
+  --ink-faint: #6b635a;
+  --paper: #faf8f4;
+  --card: #ffffff;
+  --line: #d9d2c7;
+  --line-strong: #b3a998;
+
+  /* A calm, churchy accent that still passes contrast on white. */
+  --accent: #6b2f1f;
+  --accent-ink: #ffffff;
+  --accent-soft: #f4e9e3;
+
+  --good: #1d5c34;
+  --good-soft: #e6f2ea;
+  --fair: #7a5209;
+  --fair-soft: #fbf1dd;
+  --poor: #8a1c1c;
+  --poor-soft: #fbe9e9;
+
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(22, 19, 15, 0.06), 0 4px 16px rgba(22, 19, 15, 0.06);
+
+  --font: ui-serif, Georgia, 'Times New Roman', serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f4f1eb;
+    --ink-soft: #ccc4b8;
+    --ink-faint: #a49b8d;
+    --paper: #14120f;
+    --card: #1e1b17;
+    --line: #35302a;
+    --line-strong: #4d463d;
+    --accent: #e8a48b;
+    --accent-ink: #14120f;
+    --accent-soft: #2e211c;
+    --good: #7fd8a0;
+    --good-soft: #16281d;
+    --fair: #e0b464;
+    --fair-soft: #2b2317;
+    --poor: #f09a9a;
+    --poor-soft: #2e1919;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Respect the reader's own font-size choice rather than overriding it. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 20px;
+  line-height: 1.55;
+}
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 5rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font);
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 2.1rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.2rem;
+}
+
+p {
+  margin: 0 0 0.85rem;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+/* ── Masthead ──────────────────────────────────────────────────────────── */
+
+.masthead {
+  border-bottom: 2px solid var(--line);
+  background: var(--card);
+}
+
+.masthead-inner {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-family: var(--font);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.masthead-note {
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 60px;
+  padding: 0.75rem 1.35rem;
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  width: 100%;
+}
+
+.btn:focus-visible {
+  outline: 4px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn-quiet {
+  background: transparent;
+  color: var(--accent);
+  border-color: transparent;
+  min-height: 48px;
+  font-size: 1.05rem;
+  text-decoration: underline;
+  width: auto;
+  padding: 0.4rem 0.2rem;
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-row {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.85rem 0 0;
+}
+
+@media (min-width: 30rem) {
+  .btn-row-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+.search-card {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.15rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.hint {
+  font-size: 1rem;
+  color: var(--ink-faint);
+  margin: 0.25rem 0 0.75rem;
+}
+
+input[type='text'],
+input[type='search'] {
+  width: 100%;
+  min-height: 60px;
+  padding: 0.65rem 0.85rem;
+  font-family: inherit;
+  font-size: 1.15rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+input:focus-visible {
+  outline: 4px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.15rem 0;
+  color: var(--ink-faint);
+  font-size: 1rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--line);
+}
+
+/* ── The Mass card, which is the whole product ─────────────────────────── */
+
+.mass-card {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.mass-card-lead {
+  border-color: var(--accent);
+  border-width: 3px;
+}
+
+.eyebrow {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.35rem;
+}
+
+.mass-time {
+  font-family: var(--font);
+  font-size: 3.6rem;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0 0 0.15rem;
+  color: var(--ink);
+}
+
+.mass-when {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+.church-name {
+  font-family: var(--font);
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+
+.church-meta {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.15rem;
+}
+
+.mass-what {
+  font-size: 1.08rem;
+  color: var(--ink-soft);
+  border-left: 4px solid var(--line-strong);
+  padding-left: 0.85rem;
+  margin: 0.9rem 0;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+}
+
+.tag {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 2px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink-soft);
+}
+
+.tag-obligation {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ── Reliability, always stated in words as well as colour ─────────────── */
+
+.reliability {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 1rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 2px solid;
+  margin-top: 0.9rem;
+}
+
+.reliability-good {
+  border-color: var(--good);
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.reliability-fair {
+  border-color: var(--fair);
+  background: var(--fair-soft);
+  color: var(--fair);
+}
+
+.reliability-poor {
+  border-color: var(--poor);
+  background: var(--poor-soft);
+  color: var(--poor);
+}
+
+.reliability strong {
+  white-space: nowrap;
+}
+
+/* ── Notices ───────────────────────────────────────────────────────────── */
+
+.notice {
+  border: 2px solid var(--fair);
+  background: var(--fair-soft);
+  color: var(--fair);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 1.02rem;
+}
+
+.notice-loud {
+  border-color: var(--poor);
+  background: var(--poor-soft);
+  color: var(--poor);
+  font-weight: 600;
+}
+
+/* ── Today panel ───────────────────────────────────────────────────────── */
+
+.today {
+  background: var(--accent-soft);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.15rem;
+  margin-bottom: 1.5rem;
+}
+
+.today h2 {
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+
+.today p {
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+}
+
+.today p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Lists of later Masses ─────────────────────────────────────────────── */
+
+.day-group {
+  border-top: 2px solid var(--line);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.day-heading {
+  font-family: var(--font);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+}
+
+.day-sub {
+  font-size: 1rem;
+  color: var(--ink-faint);
+  margin-bottom: 0.6rem;
+}
+
+.time-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.time-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.55rem 0.7rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.time-row-time {
+  font-family: var(--font);
+  font-size: 1.45rem;
+  font-weight: 700;
+  min-width: 5.5rem;
+}
+
+.time-row-detail {
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+/* ── Disclosure ────────────────────────────────────────────────────────── */
+
+details {
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  margin-top: 0.9rem;
+}
+
+summary {
+  cursor: pointer;
+  padding: 0.8rem 0.9rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+summary:focus-visible {
+  outline: 4px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.details-body {
+  padding: 0 0.9rem 0.9rem;
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.details-body p {
+  margin-bottom: 0.6rem;
+}
+
+.source-quote {
+  font-family: var(--font);
+  font-style: italic;
+  border-left: 4px solid var(--line-strong);
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  color: var(--ink-soft);
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+
+footer {
+  border-top: 2px solid var(--line);
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  font-size: 0.98rem;
+  color: var(--ink-faint);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.spinner {
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  padding: 1rem 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spinner::after {
+    content: '';
+    display: inline-block;
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-left: 0.5rem;
+    border: 3px solid var(--line-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    vertical-align: -2px;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

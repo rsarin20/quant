@@ -12,7 +12,17 @@
  * depth buys very little and costs a parish's small server a great deal.
  */
 
-const MAX_BYTES = 3_000_000;
+/**
+ * How much of a page we are willing to read.
+ *
+ * Raised, and — more importantly — no longer a reason to reject the page. The
+ * Archdiocese of Dublin's Mass-times index is over 3MB, because it lists every
+ * parish in the diocese on one page; the old limit threw it away, which killed the
+ * diocesan layer for exactly the churches it exists to serve. A truncated page is
+ * a page with most of the schedule still in it, and is strictly better than no
+ * page at all.
+ */
+const MAX_BYTES = 8_000_000;
 /**
  * Per-page timeout.
  *
@@ -222,6 +232,8 @@ export async function fetchPage(
   if (/application\/pdf/i.test(contentType) || /\.pdf($|\?)/i.test(url)) {
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength > MAX_BYTES) {
+      // A PDF cannot be usefully truncated — the parser needs the trailer — so a
+      // bulletin this large is genuinely unreadable and says so.
       throw new Error(`${url} is larger than the ${MAX_BYTES}-byte limit`);
     }
     // Bulletins are very often the only place the current schedule appears, so
@@ -238,10 +250,7 @@ export async function fetchPage(
     };
   }
 
-  const raw = await res.text();
-  if (raw.length > MAX_BYTES) {
-    throw new Error(`${url} is larger than the ${MAX_BYTES}-byte limit`);
-  }
+  const raw = (await res.text()).slice(0, MAX_BYTES);
   const { text, title } = htmlToText(raw);
   return {
     requestedUrl: url,
@@ -288,7 +297,7 @@ export async function crawlParishSite(
       opts.signal,
     );
     if (!res.ok) throw new Error(`returned ${res.status}`);
-    homepageHtml = await res.text();
+    homepageHtml = (await res.text()).slice(0, MAX_BYTES);
     const { text, title } = htmlToText(homepageHtml);
     pages.push({
       requestedUrl: homepageUrl,

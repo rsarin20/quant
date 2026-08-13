@@ -13,7 +13,15 @@
  */
 
 const MAX_BYTES = 3_000_000;
-const FETCH_TIMEOUT_MS = 15_000;
+/**
+ * Per-page timeout.
+ *
+ * Was 15 seconds, which one unresponsive parish server could spend on its own —
+ * and it was spending it out of a budget shared with eleven other churches. A page
+ * that has not answered in eight seconds is not going to rescue this request, and
+ * the churches waiting behind it deserve the time more.
+ */
+const FETCH_TIMEOUT_MS = 8_000;
 
 /** Link text and URL fragments that suggest a Mass-times page, by language. */
 const SCHEDULE_HINTS: Array<[RegExp, number]> = [

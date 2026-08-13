@@ -65,7 +65,7 @@ import {
  * of one person scrolling a list.
  */
 const MAX_EXTRACTIONS_PER_REQUEST = 12;
-const EXTRACTION_CONCURRENCY = 4;
+const EXTRACTION_CONCURRENCY = 6;
 
 /**
  * Wall-clock budget for the whole reading-the-web phase.
@@ -79,9 +79,12 @@ const EXTRACTION_CONCURRENCY = 4;
  * explains.
  *
  * Set below the route's own `maxDuration` so we return under our own steam rather
- * than being cut off.
+ * than being cut off. Measured against the live site: at 22 seconds only two of
+ * twelve Dublin churches finished, so ten cards still read as though the churches
+ * had no Mass. Forty seconds, six at a time, with a shorter per-page timeout so one
+ * slow parish server cannot consume the whole allowance.
  */
-const EXTRACTION_BUDGET_MS = 22_000;
+const EXTRACTION_BUDGET_MS = 40_000;
 
 /** Run `worker` over `items`, `limit` at a time, preserving input order. */
 async function mapWithConcurrency<T, R>(

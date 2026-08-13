@@ -126,6 +126,42 @@ const NON_MASS_WORDS = [
   'funeral',
 ];
 
+/**
+ * Lines that describe when a building is open, not when Mass is celebrated.
+ *
+ * Found in production: St Martin's Apostolate in Dublin published
+ *
+ *   "Open 9am - 5pm Monday to Friday"
+ *
+ * and the app's headline answer became "Next Mass 09:00", quoting that sentence
+ * as its source. The reader is told, with a citation, to turn up at nine for a
+ * Mass that does not exist. The genuine line on the same page — "1pm Daily –
+ * Lunchtime Mass" — was also found, so the cost of the false one was purely
+ * additive: it displaced a correct answer with an invented one.
+ */
+const OPENING_HOURS_PATTERN =
+  /\b(open|opens|opening|closed|closes|office hours|opening hours|abierto|horario de atenci|ge(ö|o)ffnet)\b/i;
+
+/**
+ * A window between two clock times — "9am - 5pm", "10:45 to 11:00".
+ *
+ * A window is how parishes write opening hours, Confession slots and Adoration
+ * periods. It is almost never how they write a Mass, because a Mass is announced
+ * by when it starts. Treating both ends of a window as start times manufactures
+ * two Masses out of one non-Mass fact.
+ *
+ * Both sides must be times, which is what separates "9am - 5pm" from
+ * "Monday - Friday": a day range is not a time range, and lines like
+ * "Monday - Friday 1pm Mass" must still be read.
+ */
+const TIME_RANGE_PATTERN =
+  /\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|to|till|until|hasta|bis)\s*\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)/i;
+
+/** Does this line describe a window of time rather than a starting time? */
+export function describesTimeWindow(line: string): boolean {
+  return OPENING_HOURS_PATTERN.test(line) || TIME_RANGE_PATTERN.test(line);
+}
+
 /** Words that mark a Mass as anticipated, in several languages. */
 const VIGIL_WORDS = ['vigil', 'vigilia', 'vigile', 'vorabendmesse', 'anticipata', 'anticipada'];
 
@@ -385,6 +421,9 @@ export function extractRulesFromText(
     // Skip anything that schedules a different service. Checked before the Mass
     // test, because such lines very often mention Mass in passing.
     if (namesOther) continue;
+    // Skip opening hours and time windows for the same reason: they carry clock
+    // times that are not the start of a Mass.
+    if (describesTimeWindow(line)) continue;
     // Inside a non-Mass section, skip the row outright. A passing mention of
     // Mass must not rescue it: "Friday: after 7:25 a.m. Mass, 10:45 a.m. to
     // 11:00 a.m." sits under "Confession times" and names Mass only to say when

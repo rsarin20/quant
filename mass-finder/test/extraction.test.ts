@@ -119,3 +119,35 @@ test('every rule carries the line it was read from', () => {
     assert.equal(rule.source.url, source.url);
   }
 });
+
+// ── Windows of time are not Mass times ─────────────────────────────────────
+
+test('opening hours are not read as Mass times', () => {
+  // Found in production: this line became the headline "Next Mass 09:00", quoted
+  // as its own source, sending the reader to a Mass that does not exist.
+  const page = [
+    'Our Oratory & Mass',
+    'Open 9am - 5pm Monday to Friday',
+    'Every Monday - Friday 1pm - 4pm',
+    '1pm Daily – Lunchtime Mass',
+  ].join('\n');
+  // Only the real one survives, and it survives intact.
+  assert.deepEqual(slots(page), ['0123456@13:00']);
+});
+
+test('a day range is still read, because it is not a time range', () => {
+  // "Monday - Friday" must not be mistaken for a window, or every weekday
+  // schedule written with a dash would vanish.
+  assert.deepEqual(slots('Mass Monday - Friday 7:30 a.m.'), ['12345@07:30']);
+});
+
+test('a time window is rejected however it is written', () => {
+  for (const line of [
+    'Mass 10:45 a.m. to 11:00 a.m.',
+    'Mass 9am - 5pm',
+    'Mass 14:00 until 15:00',
+    'The church is open for Mass 8:00',
+  ]) {
+    assert.deepEqual(slots(line), [], line);
+  }
+});

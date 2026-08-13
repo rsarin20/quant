@@ -7,7 +7,10 @@ import { reverseGeocodeCountry } from './churches/geocode';
 import type { LatLon } from './churches/geo';
 import { haversineMetres } from './churches/geo';
 import { NON_ROMAN_RITES, type Church } from './churches/types';
+import { discoverWebsite, hasSomewhereToLook } from './churches/discover';
 import { DEMO_CHURCHES, demoChurchById, isDemoMode } from './demo';
+import { directoriesFor, fallbackLinksFor } from './directory/dioceses';
+import { curatedFor, curatedScheduleFor, withCuratedWebsite } from './directory/registry';
 import { extractSchedule } from './extract/pipeline';
 import { liturgicalDay } from './liturgy/calendar';
 import { describeMass, describeReliability, explainDay } from './liturgy/explain';
@@ -46,7 +49,58 @@ import {
  * screen with no explanation.
  */
 
-const MAX_EXTRACTIONS_PER_REQUEST = 3;
+/**
+ * How many churches we will read the web for in one request, and how many of
+ * those at once.
+ *
+ * This used to be 3, sequentially. That was the second-biggest cause of empty
+ * results after missing websites: a search returning 25 churches would attempt
+ * three of them, one after another, and every card past the third said "we do not
+ * have Mass times for this church yet" — which the reader quite reasonably takes
+ * to mean the church has no Mass, rather than that we ran out of budget.
+ *
+ * Twelve churches, four at a time, fits inside a serverless invocation because the
+ * crawl inside each one is now parallel too. The cap still exists, and still
+ * matters: past this point we are hammering a dozen small parish servers on behalf
+ * of one person scrolling a list.
+ */
+const MAX_EXTRACTIONS_PER_REQUEST = 12;
+const EXTRACTION_CONCURRENCY = 4;
+
+/**
+ * Wall-clock budget for the whole reading-the-web phase.
+ *
+ * The cap on churches is not enough on its own. A serverless function has a hard
+ * ceiling, and being killed at the ceiling is the worst possible outcome: the
+ * request returns nothing at all, so a search that had found eleven churches and
+ * nine schedules reports a flat failure. A deadline converts that into partial
+ * success — whatever finished is shown, and the churches we ran out of time for
+ * are simply the ones with no times yet, which is a state the interface already
+ * explains.
+ *
+ * Set below the route's own `maxDuration` so we return under our own steam rather
+ * than being cut off.
+ */
+const EXTRACTION_BUDGET_MS = 22_000;
+
+/** Run `worker` over `items`, `limit` at a time, preserving input order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
 
 function buildCard(
   church: Church,
@@ -78,19 +132,38 @@ function buildCard(
       ? describeMass(occurrences[0].day, occurrences[0].isVigil)
       : undefined,
     nonRomanCalendar: NON_ROMAN_RITES.has(church.rite),
+    // Only when we have nothing. A card with times does not need to send the
+    // reader elsewhere, and offering to would undermine the answer it just gave.
+    whereElseToLook: occurrences.length
+      ? undefined
+      : fallbackLinksFor({
+          country: church.countryCode ?? church.address?.country,
+          name: church.name,
+          city: church.address?.city,
+          lat: church.lat,
+          lon: church.lon,
+        }),
   };
 }
 
 async function loadScheduleFor(
   church: Church,
-  opts: { allowExtraction: boolean; serviceTimes?: string },
+  opts: { allowExtraction: boolean; signal?: AbortSignal },
 ): Promise<{ schedule?: ChurchSchedule; staleSince?: string; problems: string[] }> {
+  // Hand-checked times first: no network, works on a cold start, and the only
+  // thing that answers a church whose site defeats automated reading entirely.
+  const curated = curatedScheduleFor(church);
+  if (curated) return { schedule: curated, problems: [] };
+
   const fresh = await getSchedule(church.id);
   if (fresh) return { schedule: fresh, problems: [] };
 
   if (opts.allowExtraction) {
     try {
-      const report = await extractSchedule(church, { serviceTimes: opts.serviceTimes });
+      const report = await extractSchedule(church, {
+        serviceTimes: church.serviceTimes,
+        signal: opts.signal,
+      });
       if (report.schedule.rules.length) {
         await putSchedule(report.schedule);
         return { schedule: report.schedule, problems: report.problems };
@@ -198,40 +271,85 @@ export async function nearby(params: NearbyParams): Promise<NearbyResponse> {
   }
 
   const selected = results.slice(0, limit);
-  let extractions = 0;
-  const cards: ChurchCard[] = [];
 
-  for (const { church, distanceMetres } of selected) {
+  // Budget the network work before spending any of it, so it goes to the churches
+  // that have somewhere to look rather than to whichever happened to be nearest.
+  const prepared = selected.map(({ church, distanceMetres }) => {
     const withCountry: Church = church.countryCode
       ? church
       : { ...church, countryCode: searchCountry };
+    const hasDirectory =
+      directoriesFor({
+        country: withCountry.countryCode,
+        city: withCountry.address?.city,
+        state: withCountry.address?.state,
+      }).length > 0;
+    return {
+      church: withCountry,
+      distanceMetres,
+      worthTrying: hasSomewhereToLook(withCountry, hasDirectory) || !!curatedFor(withCountry),
+    };
+  });
 
-    let schedule: ChurchSchedule | undefined;
-    let staleSince: string | undefined;
+  let budget = params.fetchSchedules ? MAX_EXTRACTIONS_PER_REQUEST : 0;
+  const withBudget = prepared.map((entry) => {
+    const allow = entry.worthTrying && budget > 0;
+    if (allow) budget -= 1;
+    return { ...entry, allow };
+  });
 
-    if (isDemoMode()) {
-      schedule = demoChurchById(church.id)?.schedule;
-    } else {
-      const allow =
-        !!params.fetchSchedules &&
-        extractions < MAX_EXTRACTIONS_PER_REQUEST &&
-        !!withCountry.website;
-      if (allow) extractions += 1;
-      const loaded = await loadScheduleFor(withCountry, { allowExtraction: allow });
-      schedule = loaded.schedule;
-      staleSince = loaded.staleSince;
-    }
+  const deadline = Date.now() + EXTRACTION_BUDGET_MS;
+  const clock = new AbortController();
+  const clockTimer = setTimeout(() => clock.abort(), EXTRACTION_BUDGET_MS);
+  let ranOutOfTime = false;
 
-    const reports = await readUserReports(church.id);
-    cards.push(
-      buildCard(withCountry, schedule, {
+  const cards = await mapWithConcurrency(
+    withBudget,
+    EXTRACTION_CONCURRENCY,
+    async ({ church, distanceMetres, allow }) => {
+      let schedule: ChurchSchedule | undefined;
+      let staleSince: string | undefined;
+      let resolved = church;
+
+      if (isDemoMode()) {
+        schedule = demoChurchById(church.id)?.schedule;
+      } else {
+        // Whatever the budget said, stop starting new work once time is up. The
+        // cached and curated paths below still run — they cost nothing.
+        const inTime = allow && Date.now() < deadline;
+        if (allow && !inTime) ranOutOfTime = true;
+
+        // Find a website before deciding there is nothing to read.
+        resolved = inTime
+          ? await discoverWebsite(church, { signal: clock.signal })
+          : withCuratedWebsite(church);
+        if (resolved.website !== church.website) await putChurch(resolved);
+        const loaded = await loadScheduleFor(resolved, {
+          allowExtraction: inTime,
+          signal: clock.signal,
+        });
+        schedule = loaded.schedule;
+        staleSince = loaded.staleSince;
+      }
+
+      const reports = await readUserReports(church.id);
+      return buildCard(resolved, schedule, {
         distanceMetres,
         now,
         staleSince,
         disputed: reportSummary(reports).verdict === 'disputed',
-      }),
+      });
+    },
+  );
+
+  clearTimeout(clockTimer);
+  if (cards.some((c) => c.church.example)) containsExampleData = true;
+  if (ranOutOfTime) {
+    // Said plainly, because the alternative reading of a blank card is "this
+    // church has no Mass", which is a far worse thing to leave someone believing.
+    notices.push(
+      'We ran out of time reading parish websites, so some churches below have no times yet. Open a church to have another go at it.',
     );
-    if (withCountry.example) containsExampleData = true;
   }
 
   // Churches with a known next Mass first — that is the question being asked —
@@ -308,6 +426,18 @@ export async function churchDetail(
 
   if (!church) return undefined;
 
+  // Find a website before concluding there is nothing to read. This page is the
+  // one somebody actually opened, so it is the last place to be stingy about a
+  // lookup: a single Wikidata request is what stands between a cathedral with no
+  // OSM `website` tag and an answer.
+  if (!demo && !isDemoMode()) {
+    const resolved = await discoverWebsite(church);
+    if (resolved.website !== church.website) {
+      church = resolved;
+      await putChurch(resolved);
+    }
+  }
+
   let schedule: ChurchSchedule | undefined;
   let staleSince: string | undefined;
   let diagnostics: ChurchDetailResponse['diagnostics'];
@@ -318,7 +448,7 @@ export async function churchDetail(
       'This is an invented example parish, not a real church. The times below are not real Mass times.',
     );
   } else if (params.refresh) {
-    const report = await extractSchedule(church);
+    const report = await extractSchedule(church, { serviceTimes: church.serviceTimes });
     if (report.schedule.rules.length) {
       await putSchedule(report.schedule);
       schedule = report.schedule;

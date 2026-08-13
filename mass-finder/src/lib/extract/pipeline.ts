@@ -2,7 +2,14 @@ import type { Church, SourceRef } from '../churches/types';
 import { extractRulesFromText } from '../schedule/heuristic';
 import { parseServiceTimes } from '../schedule/osmServiceTimes';
 import type { ChurchSchedule, MassRule, ScheduleQuality } from '../schedule/types';
-import { crawlParishSite, type CrawlOptions } from './crawl';
+import { directoriesFor } from '../directory/dioceses';
+import {
+  crawlParishSite,
+  verifyPageIdentity,
+  type CrawlOptions,
+  type FetchedPage,
+} from './crawl';
+import { crawlDirectoryForParish } from './directoryCrawl';
 import { extractWithModel, isModelConfigured } from './llm';
 
 /**
@@ -104,23 +111,78 @@ export async function extractSchedule(
   }
 
   // ── Layer 2: the parish website ─────────────────────────────────────────
-  if (!church.website) {
-    problems.push('No website is recorded for this church, so we could not read a schedule from one.');
-    return finish();
+  const crawledPages: FetchedPage[] = [];
+  /** True when the pages came from a diocese rather than the parish itself. */
+  let fromDiocese = false;
+
+  if (church.website) {
+    const crawl = await crawlParishSite(church.website, opts).catch((err) => {
+      problems.push(`Could not read ${church.website}: ${String(err)}`);
+      return { pages: [], failures: [] };
+    });
+    for (const f of crawl.failures) problems.push(`Could not read ${f.url}: ${f.reason}`);
+
+    // A website we inferred rather than one a mapper recorded has to prove it
+    // belongs to this church before we quote it. See `verifyPageIdentity`.
+    const mustVerify = church.websiteSource === 'curated' || church.websiteSource === 'wikidata';
+    for (const page of crawl.pages) {
+      if (mustVerify && !verifyPageIdentity(page, church.name)) {
+        problems.push(
+          `${page.finalUrl} does not mention ${church.name}, so we did not take any times from it.`,
+        );
+        continue;
+      }
+      crawledPages.push(page);
+    }
+  } else {
+    problems.push('No website is recorded for this church.');
   }
 
-  const crawl = await crawlParishSite(church.website, opts).catch((err) => {
-    problems.push(`Could not read ${church.website}: ${String(err)}`);
-    return { pages: [], failures: [] };
-  });
-  for (const f of crawl.failures) problems.push(`Could not read ${f.url}: ${f.reason}`);
-  pagesRead.push(...crawl.pages.map((p) => p.finalUrl));
-  if (!crawl.pages.length) return finish();
+  // ── Layer 2b: the diocese, when the parish has no site of its own ───────
+  // The majority case, not an edge case: most churches have no website, and their
+  // diocese publishes their times anyway.
+  if (!crawledPages.length) {
+    const directories = directoriesFor({
+      country: church.countryCode ?? church.address?.country,
+      city: church.address?.city,
+      state: church.address?.state,
+    });
+    for (const directory of directories) {
+      const result = await crawlDirectoryForParish(directory, church.name, opts).catch(
+        (err) => {
+          problems.push(`Could not read ${directory.label}: ${String(err)}`);
+          return undefined;
+        },
+      );
+      if (!result) continue;
+      for (const r of result.rejected) problems.push(r.reason);
+      if (result.pages.length) {
+        crawledPages.push(...result.pages);
+        fromDiocese = true;
+        observations.push(
+          `These times come from ${directory.label} rather than from the church’s own website.`,
+        );
+        break;
+      }
+      // Index failures are noise unless nothing at all worked, so they are only
+      // recorded when we end up with nothing to show.
+      if (directory === directories[directories.length - 1]) {
+        for (const f of result.failures) problems.push(`${f.url}: ${f.reason}`);
+      }
+    }
+  }
+
+  pagesRead.push(...crawledPages.map((p) => p.finalUrl));
+  if (!crawledPages.length) return finish();
 
   // ── Layer 3: deterministic text pass ───────────────────────────────────
-  for (const page of crawl.pages) {
+  for (const page of crawledPages) {
     const source: SourceRef = {
-      kind: /\.pdf($|\?)/i.test(page.finalUrl) ? 'parish-bulletin' : 'parish-website',
+      kind: /\.pdf($|\?)/i.test(page.finalUrl)
+        ? 'parish-bulletin'
+        : fromDiocese
+          ? 'diocese-website'
+          : 'parish-website',
       url: page.finalUrl,
       fetchedAt: page.fetchedAt,
       detail: page.title,
@@ -134,7 +196,7 @@ export async function extractSchedule(
       const result = await extractWithModel({
         churchId: church.id,
         churchName: church.name,
-        pages: crawl.pages,
+        pages: crawledPages,
       });
       modelUsed = result.modelUsed;
       if (result.refused) {

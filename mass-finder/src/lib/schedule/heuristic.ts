@@ -228,8 +228,31 @@ export function extractWeekdays(line: string): Weekday[] {
       found.add(day);
     }
   }
-  return Array.from(found).sort();
+  if (found.size) return Array.from(found).sort();
+
+  // Collective words. Parishes write "Weekday Masses 7:30am" at least as often as
+  // they enumerate Monday to Friday, and a line naming no individual day used to be
+  // discarded entirely — losing every weekday Mass on such a page.
+  for (const [pattern, days] of COLLECTIVE_DAY_WORDS) {
+    if (pattern.test(lower)) return [...days].sort();
+  }
+  return [];
 }
+
+/**
+ * Ways of naming a group of days without listing them.
+ *
+ * "Weekend" is deliberately Saturday **and** Sunday: a parish writing "Weekend
+ * Masses: Sat 6pm, Sun 10am" means both, and the vigil logic downstream works out
+ * that the Saturday evening one counts for Sunday. Ordered longest-first so
+ * "weekday" is not matched inside "weekdays" by the shorter pattern.
+ */
+const COLLECTIVE_DAY_WORDS: Array<[RegExp, Weekday[]]> = [
+  [/\bweekend|\bfin de semana|\bfim de semana/i, [6, 0]],
+  [/\bweekdays?\b|\bferial|\bdías? de semana|\bdias? de semana|\bwochentag/i, [1, 2, 3, 4, 5]],
+  [/\bdaily\b|\bevery day\b|\ball week\b|\bdiario\b|\bdiariamente\b|\bt(a|á)glich\b|\bcodziennie\b/i,
+    [0, 1, 2, 3, 4, 5, 6]],
+];
 
 function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -252,6 +275,35 @@ export function mentionsVigil(line: string): boolean {
 export function mentionsNonMassService(line: string): boolean {
   const lower = line.toLowerCase();
   return NON_MASS_WORDS.some((w) => new RegExp(`\\b${escape(w)}`, 'i').test(lower));
+}
+
+/**
+ * Is this line a bare time row, of the kind that sits under a day heading?
+ *
+ * Only such lines may inherit the day from a heading above them. Without this
+ * test, a page reading
+ *
+ *     Sunday
+ *     9:00 AM
+ *     The office is open until 4:30 PM.
+ *
+ * produced a Sunday Mass at 16:30 from the office-hours sentence — a wrong time,
+ * presented with a quote and a source, of exactly the kind that sends someone out
+ * to a locked building. Prose is therefore excluded: a genuine table cell is a
+ * time plus at most a short qualifier ("6:00 PM (Vigil)", "11:00 Spanish"), never
+ * a sentence.
+ */
+export function looksLikeBareTimeRow(line: string): boolean {
+  if (line.length > 48) return false;
+  // What remains once the times, punctuation and digits are taken out.
+  const words = line
+    .replace(/\d{1,2}\s*[:.h]\s*\d{2}/g, ' ')
+    .replace(/\b\d{1,2}\s*(a\.?m\.?|p\.?m\.?)/gi, ' ')
+    .replace(/\b(am|pm|noon|midnight|vigil|and|&)\b/gi, ' ')
+    .replace(/[^\p{L} ]+/gu, ' ')
+    .trim();
+  // One short qualifier is fine; a clause is not.
+  return words.length <= 16;
 }
 
 export interface HeuristicOptions {
@@ -296,6 +348,10 @@ export function extractRulesFromText(
    */
   let section: 'mass' | 'other' | 'unknown' = 'unknown';
 
+  /** Days set by a bare day heading, governing the time-only rows beneath it. */
+  let pendingDays: Weekday[] | undefined;
+  let pendingDaysUntil = -1;
+
   for (let i = 0; i < lines.length && rules.length < maxRules; i += 1) {
     const line = lines[i];
     const times = extractTimes(line);
@@ -310,6 +366,18 @@ export function extractRulesFromText(
         massContextUntil = i + 8;
       } else if (namesOther) {
         section = 'other';
+        // A day heading inside a Confession block must not leak into the Mass
+        // block that follows it.
+        pendingDays = undefined;
+      }
+
+      // A bare day heading — "Sunday", "Weekdays" — sets the day for the rows
+      // beneath it. Kept short-lived: three lines is a table column, ten lines
+      // later is a different part of the page and guessing would invent times.
+      const headingDays = extractWeekdays(line);
+      if (headingDays.length && line.length < 60) {
+        pendingDays = headingDays;
+        pendingDaysUntil = i + 4;
       }
       continue;
     }
@@ -326,7 +394,25 @@ export function extractRulesFromText(
     // somebody to the wrong service.
     if (section === 'other') continue;
 
-    const weekdays = extractWeekdays(line);
+    // A day named on its own line governs the times listed under it. This is what
+    // an HTML table or definition list collapses to once the markup is stripped:
+    //
+    //     Mass Times
+    //     Sunday
+    //     9:00 AM
+    //     11:00 AM
+    //     Saturday
+    //     6:00 PM (Vigil)
+    //
+    // Every one of those times used to be discarded for not naming a day on its
+    // own line, which meant the tidiest parish pages on the web — the ones that use
+    // a real table — yielded nothing at all.
+    const onLine = extractWeekdays(line);
+    const weekdays = onLine.length
+      ? onLine
+      : pendingDays && i <= pendingDaysUntil && looksLikeBareTimeRow(line)
+        ? pendingDays
+        : [];
     if (!weekdays.length) continue;
 
     if (namesMass) massContextUntil = i + 8;

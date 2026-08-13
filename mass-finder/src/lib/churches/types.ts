@@ -26,6 +26,25 @@ export interface Church {
   website?: string;
   email?: string;
   /**
+   * OpenStreetMap's own `service_times` (or `opening_hours:service_times`) tag,
+   * carried through so the extraction pipeline can read it without a second
+   * Overpass query. Sparse, sometimes stale, but free and already in hand — and
+   * for a church with no website it is often the only machine-readable schedule
+   * that exists anywhere.
+   */
+  serviceTimes?: string;
+  /**
+   * Wikidata item id (`Q…`) from the OSM `wikidata` tag. Used to find an official
+   * website for the ~70% of churches OSM has no `website` tag for.
+   */
+  wikidata?: string;
+  /**
+   * How we came to know this church's website, when it did not come straight from
+   * the OSM `website` tag. Shown in the sources list, because a website we
+   * inferred deserves less trust than one a mapper recorded.
+   */
+  websiteSource?: 'osm-tag' | 'wikidata' | 'curated';
+  /**
    * Which Catholic Church this parish belongs to. The Roman calendar this app
    * computes applies to the Latin church; the Eastern Catholic churches keep
    * their own calendars and we must not pretend otherwise.

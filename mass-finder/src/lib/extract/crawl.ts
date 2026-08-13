@@ -27,8 +27,12 @@ const SCHEDULE_HINTS: Array<[RegExp, number]> = [
   [/msze\s*(ś|s)wi(ę|e)te|porz(ą|a)dek\s*nabo(ż|z)e(ń|n)stw/i, 100],
   [/schedule/i, 70],
   [/mass|misas?|missas?|messes?|messe|msze/i, 60],
-  [/worship|liturgy|liturgia|liturgie/i, 50],
+  // A nav item reading just "Times" or "Hours" is common and used to score zero,
+  // which meant the one link on the site that led to the answer was discarded.
+  [/\btimes?\b|\bhours\b|\bhorario\b|\bhoraire\b|\borari\b|\bzeiten\b/i, 55],
+  [/worship|liturgy|liturgia|liturgie|liturgies|celebrations?/i, 50],
   [/service\s*times?/i, 50],
+  [/parish\s*(info|information|life)|welcome/i, 25],
   [/bulletin|boletin|bollettino|biuletyn/i, 40],
   [/sacraments?|sacramentos?/i, 20],
   [/about|contact|home/i, -10],
@@ -297,13 +301,68 @@ export async function crawlParishSite(
     .sort((a, b) => b.score - a.score)
     .slice(0, maxPages - 1);
 
-  for (const { link } of candidates) {
-    try {
-      pages.push(await fetchPage(link.url, opts));
-    } catch (err) {
-      failures.push({ url: link.url, reason: String(err) });
-    }
+  // Fetched together rather than one after another. Three pages at 15s of
+  // permitted latency each is 45s serially, which on a serverless function means
+  // the request is killed before the answer arrives — the user sees "no times" for
+  // a church whose times were sitting on page three. It is also no heavier on the
+  // parish's server: the same pages, the same total bytes, just not queued.
+  const fetched = await Promise.all(
+    candidates.map(async ({ link }) => {
+      try {
+        return { page: await fetchPage(link.url, opts) };
+      } catch (err) {
+        return { failure: { url: link.url, reason: String(err) } };
+      }
+    }),
+  );
+  for (const result of fetched) {
+    if (result.page) pages.push(result.page);
+    if (result.failure) failures.push(result.failure);
   }
 
   return { pages, failures };
+}
+
+/**
+ * Does this page actually belong to the church we think it does?
+ *
+ * Only asked of pages reached from a URL we inferred rather than one a mapper
+ * recorded — a curated entry, a Wikidata claim, a diocesan index match. Those can
+ * be wrong in a uniquely damaging way: a plausible-looking site that belongs to a
+ * *different* parish, whose Mass times would then be extracted, quoted, sourced
+ * and presented with full confidence under this church's name. The person acts on
+ * it and finds a locked door.
+ *
+ * The test is deliberately loose — one distinctive word from the church's name
+ * appearing anywhere in the page — because parishes rename themselves constantly
+ * ("St Mary's" on the sign, "Parish of the Assumption" on the site) and a strict
+ * check would reject far more real matches than false ones. Loose is enough: it
+ * catches the failure that matters, which is a wholly unrelated site.
+ */
+export function verifyPageIdentity(
+  page: { text: string; title?: string },
+  churchName: string,
+): boolean {
+  // Words too common in church names to distinguish one from another.
+  const generic = new Set([
+    'saint', 'st', 'the', 'of', 'church', 'catholic', 'roman', 'parish', 'our',
+    'lady', 'holy', 'blessed', 'sacred', 'cathedral', 'basilica', 'chapel',
+    'and', 'de', 'la', 'el', 'iglesia', 'santa', 'san', 'sant', 'kirche',
+  ]);
+  const distinctive = churchName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 2 && !generic.has(w));
+
+  // A name made entirely of generic words ("Holy Cross Church") gives us nothing
+  // to verify against, so we do not pretend to have verified it.
+  if (!distinctive.length) return true;
+
+  const haystack = `${page.title ?? ''} ${page.text}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return distinctive.some((word) => haystack.includes(word));
 }

@@ -24,6 +24,18 @@ export interface ChurchCard {
   massDescription?: string;
   /** True when the church's rite does not follow the Roman calendar. */
   nonRomanCalendar: boolean;
+  /**
+   * Places the reader can look when we have no times of our own.
+   *
+   * Present only on a card with no `next`, and the whole point of it. A card that
+   * says "we do not have Mass times for this church" and offers nothing else has
+   * wasted the reader's trip through the app: they still need to be at Mass this
+   * evening and now have one fewer idea about how to find out when. A link to
+   * their country's Mass directory, or failing that a search for this church by
+   * name, is not an admission of defeat — it is the answer to the question they
+   * actually asked.
+   */
+  whereElseToLook?: Array<{ label: string; url: string }>;
 }
 
 export interface NearbyResponse {

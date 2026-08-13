@@ -157,6 +157,45 @@ export function timezoneFor(lat: number, lon: number): string {
   }
 }
 
+/**
+ * The website, from whichever of OSM's many URL keys the mapper happened to use.
+ *
+ * This matters more than it looks. A survey of central Dublin found only 7 of 25
+ * Catholic churches carrying a plain `website` tag — and some of the other 18 do
+ * have a URL recorded, just under `contact:website`, `url` or a language-suffixed
+ * variant. Reading one key and giving up throws away coverage for free.
+ *
+ * Social-media-only keys (`contact:facebook`) are deliberately *not* used: those
+ * pages are login-walled and JavaScript-rendered, so crawling them yields nothing
+ * and merely makes the church look like it was checked when it was not.
+ */
+function websiteFromTags(tags: Record<string, string>): string | undefined {
+  const keys = [
+    'website',
+    'contact:website',
+    'url',
+    'contact:url',
+    'website:en',
+    'operator:website',
+    'website:official',
+  ];
+  for (const key of keys) {
+    const raw = tags[key]?.trim();
+    if (!raw) continue;
+    // Mappers sometimes put several URLs in one tag, separated by ';'.
+    const first = raw.split(';')[0].trim();
+    if (!first) continue;
+    const withScheme = /^https?:\/\//i.test(first) ? first : `https://${first}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.hostname.includes('.')) return url.toString();
+    } catch {
+      // Unparseable — try the next key.
+    }
+  }
+  return undefined;
+}
+
 function elementToChurch(el: OverpassElement, fetchedAt: string): Church | undefined {
   const tags = el.tags ?? {};
   const lat = el.lat ?? el.center?.lat;
@@ -169,6 +208,7 @@ function elementToChurch(el: OverpassElement, fetchedAt: string): Church | undef
 
   const name =
     tags.name ?? tags['name:en'] ?? tags.official_name ?? 'Catholic church (unnamed)';
+  const website = websiteFromTags(tags);
 
   const source: SourceRef = {
     kind: 'openstreetmap',
@@ -194,9 +234,13 @@ function elementToChurch(el: OverpassElement, fetchedAt: string): Church | undef
       state: tags['addr:state'],
       country: tags['addr:country'],
     },
-    phone: tags.phone ?? tags['contact:phone'],
-    website: tags.website ?? tags['contact:website'] ?? tags.url,
+    phone: tags.phone ?? tags['contact:phone'] ?? tags['phone:mobile'],
+    website,
+    websiteSource: website ? 'osm-tag' : undefined,
     email: tags.email ?? tags['contact:email'],
+    // OSM stores Mass times under two competing keys. Take either.
+    serviceTimes: tags.service_times ?? tags['opening_hours:service_times'],
+    wikidata: /^Q\d+$/.test(tags.wikidata ?? '') ? tags.wikidata : undefined,
     rite: tagged ? riteFromDenomination(denomination) : 'unknown',
     denominationRaw: denomination,
     identification: tagged ? 'tagged-catholic' : 'name-inferred',
@@ -385,7 +429,10 @@ function elementToChurchUnfiltered(
       postcode: tags['addr:postcode'],
     },
     phone: tags.phone ?? tags['contact:phone'],
-    website: tags.website ?? tags['contact:website'] ?? tags.url,
+    website: websiteFromTags(tags),
+    websiteSource: websiteFromTags(tags) ? 'osm-tag' : undefined,
+    serviceTimes: tags.service_times ?? tags['opening_hours:service_times'],
+    wikidata: /^Q\d+$/.test(tags.wikidata ?? '') ? tags.wikidata : undefined,
     rite: riteFromDenomination(tags.denomination),
     denominationRaw: tags.denomination,
     identification: 'name-inferred',

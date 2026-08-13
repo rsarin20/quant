@@ -120,6 +120,29 @@ export default function ChurchDetail({ detail }: { detail: ChurchDetailResponse 
         <span>{card.reliability.text}</span>
       </div>
 
+      {card.whereElseToLook?.length ? (
+        <div className="where-else">
+          <p className="where-else-lead">
+            We could not find Mass times for this church. Here is where else to look:
+          </p>
+          <ul className="where-else-list">
+            {card.whereElseToLook.map((link) => (
+              <li key={link.url}>
+                <a href={link.url} target="_blank" rel="noreferrer">
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          {church.phone ? (
+            <p style={{ margin: '0.75rem 0 0' }}>
+              The surest answer is the parish itself:{' '}
+              <a href={telUrl(church.phone)}>{church.phone}</a>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {church.website ? (
         <p style={{ marginTop: '1rem' }}>
           <a href={church.website} target="_blank" rel="noreferrer">

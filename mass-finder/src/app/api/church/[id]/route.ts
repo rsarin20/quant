@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import { churchDetail } from '@/lib/service';
 
 export const dynamic = 'force-dynamic';
+/**
+ * Reading a dozen parish websites does not fit in the 10-second default. The
+ * service layer stops itself at 22 seconds, well inside this, so the function
+ * returns partial results under its own control rather than being killed.
+ */
+export const maxDuration = 60;
 
 /** `GET /api/church/{id}?refresh=1&days=14` — full schedule for one church. */
 export async function GET(

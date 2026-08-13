@@ -194,6 +194,21 @@ export default function MassCard({
         <span>{card.reliability.text}</span>
       </div>
 
+      {card.whereElseToLook?.length ? (
+        <div className="where-else">
+          <p className="where-else-lead">Where else you can look:</p>
+          <ul className="where-else-list">
+            {card.whereElseToLook.map((link) => (
+              <li key={link.url}>
+                <a href={link.url} target="_blank" rel="noreferrer">
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {card.upcoming.length ? (
         <details>
           <summary>Show more Mass times at this church</summary>

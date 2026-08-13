@@ -580,3 +580,45 @@ footer {
     transform: rotate(360deg);
   }
 }
+
+/*
+ * "Where else you can look" — shown only on a card we could not answer.
+ *
+ * Styled as a plain list of large links rather than buttons: these lead off the
+ * app to somebody else's site, and dressing them as primary actions would compete
+ * with the directions button on cards that do have a Mass to go to. Type stays at
+ * the body size — 20px — because the person reading this is the person we have
+ * already failed once, and shrinking the consolation is not the way to treat them.
+ */
+.where-else {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-sunken, #f4f2ee);
+  border-radius: 10px;
+}
+
+.where-else-lead {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.where-else-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.where-else-list li {
+  margin-bottom: 0.6rem;
+}
+
+.where-else-list li:last-child {
+  margin-bottom: 0;
+}
+
+.where-else-list a {
+  /* 60px minimum tap target, as everywhere else in this interface. */
+  display: inline-block;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  line-height: 1.4;
+}

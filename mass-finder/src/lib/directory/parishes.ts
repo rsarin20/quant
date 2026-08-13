@@ -37,7 +37,11 @@ export const CURATED_PARISHES: CuratedParish[] = [
   {
     osmId: 'osm:way/43981431',
     label: "St Mary's Pro-Cathedral, Dublin",
-    website: 'https://procathedral.ie/',
+    // Not procathedral.ie: that domain now redirects to the archdiocese's
+    // all-parishes Mass-times listing, which the listing guard correctly refuses
+    // as a source — a curated URL can go stale exactly like an OSM tag can. This
+    // is the diocese's page for this parish alone.
+    website: 'https://dublindiocese.ie/parish/pro-cathedral/',
     note: 'The cathedral church of the Archdiocese of Dublin.',
   },
   {

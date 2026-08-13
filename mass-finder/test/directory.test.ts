@@ -91,10 +91,10 @@ test('a wikidata tag is kept only when it is a well-formed item id', () => {
 test('Wikidata P856 yields an official website', async () => {
   const fetchImpl = (async () =>
     new Response(
-      JSON.stringify({ P856: [{ value: { type: 'value', content: 'https://procathedral.ie/' } }] }),
+      JSON.stringify({ P856: [{ value: { type: 'value', content: 'https://example.org/parish/' } }] }),
       { status: 200 },
     )) as unknown as typeof fetch;
-  assert.equal(await officialWebsiteFor('Q1', { fetchImpl }), 'https://procathedral.ie/');
+  assert.equal(await officialWebsiteFor('Q1', { fetchImpl }), 'https://example.org/parish/');
 });
 
 test('a deprecated Wikidata website is not followed', async () => {
@@ -127,7 +127,7 @@ test('the pro-cathedral is matched by OSM id and given its website', () => {
   const proCathedral = church({ id: 'osm:way/43981431', name: "Saint Mary's Cathedral" });
   assert.equal(proCathedral.website, undefined);
   const filled = withCuratedWebsite(proCathedral);
-  assert.equal(filled.website, 'https://procathedral.ie/');
+  assert.equal(filled.website, 'https://dublindiocese.ie/parish/pro-cathedral/');
   assert.equal(filled.websiteSource, 'curated');
   // The inferred URL is recorded as a source, not smuggled in silently.
   assert.ok(filled.sources.some((s) => s.detail?.includes('parish directory')));
@@ -259,7 +259,7 @@ test('discovery prefers the curated website and does not call the network for it
     church({ id: 'osm:way/43981431', wikidata: 'Q1' }),
     { fetchImpl },
   );
-  assert.equal(found.website, 'https://procathedral.ie/');
+  assert.equal(found.website, 'https://dublindiocese.ie/parish/pro-cathedral/');
   assert.equal(called, false, 'the curated hit should short-circuit Wikidata');
 });
 

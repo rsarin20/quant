@@ -241,6 +241,7 @@ function elementToChurch(el: OverpassElement, fetchedAt: string): Church | undef
     // OSM stores Mass times under two competing keys. Take either.
     serviceTimes: tags.service_times ?? tags['opening_hours:service_times'],
     wikidata: /^Q\d+$/.test(tags.wikidata ?? '') ? tags.wikidata : undefined,
+    commonsTag: tags.wikimedia_commons ?? tags.image,
     rite: tagged ? riteFromDenomination(denomination) : 'unknown',
     denominationRaw: denomination,
     identification: tagged ? 'tagged-catholic' : 'name-inferred',

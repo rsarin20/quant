@@ -7,17 +7,19 @@ import { reverseGeocodeCountry } from './churches/geocode';
 import type { LatLon } from './churches/geo';
 import { haversineMetres } from './churches/geo';
 import { NON_ROMAN_RITES, type Church } from './churches/types';
-import { discoverWebsite, hasSomewhereToLook } from './churches/discover';
+import { discoverWebsite, hasSomewhereToLook, withPhoto } from './churches/discover';
 import { DEMO_CHURCHES, demoChurchById, isDemoMode } from './demo';
 import { directoriesFor, fallbackLinksFor } from './directory/dioceses';
 import { curatedFor, curatedScheduleFor, withCuratedWebsite } from './directory/registry';
 import { extractSchedule } from './extract/pipeline';
 import { liturgicalDay } from './liturgy/calendar';
+import { themeFor } from './theme';
 import { describeMass, describeReliability, explainDay } from './liturgy/explain';
 import { utc } from './liturgy/computus';
 import { groupByLocalDate, resolveOccurrences } from './schedule/resolve';
 import { localDateIn } from './schedule/timezone';
 import type { ChurchSchedule } from './schedule/types';
+import type { Colour } from './liturgy/types';
 import {
   getCachedChurches,
   getChurch,
@@ -108,7 +110,14 @@ async function mapWithConcurrency<T, R>(
 function buildCard(
   church: Church,
   schedule: ChurchSchedule | undefined,
-  opts: { distanceMetres?: number; now?: Date; disputed?: boolean; staleSince?: string },
+  opts: {
+    distanceMetres?: number;
+    now?: Date;
+    disputed?: boolean;
+    staleSince?: string;
+    /** Today's liturgical colour, used when the church has no upcoming Mass. */
+    todayColour?: Colour;
+  },
 ): ChurchCard {
   const now = opts.now ?? new Date();
   const occurrences = schedule
@@ -146,6 +155,13 @@ function buildCard(
           lat: church.lat,
           lon: church.lon,
         }),
+    theme: themeFor({
+      churchId: church.id,
+      // The colour of the Mass we are actually showing, when there is one, so the
+      // card is dressed for the liturgy it is announcing rather than for today.
+      colour: occurrences[0]?.day.colour ?? opts.todayColour ?? 'green',
+      photoUrl: church.photo?.wideUrl,
+    }),
   };
 }
 
@@ -326,7 +342,10 @@ export async function nearby(params: NearbyParams): Promise<NearbyResponse> {
         resolved = inTime
           ? await discoverWebsite(church, { signal: clock.signal })
           : withCuratedWebsite(church);
-        if (resolved.website !== church.website) await putChurch(resolved);
+        // A photograph is how somebody confirms they are at the right building, so
+        // it is worth a request even when the schedule hunt found nothing.
+        if (inTime) resolved = await withPhoto(resolved, { signal: clock.signal });
+        if (resolved.website !== church.website || resolved.photo) await putChurch(resolved);
         const loaded = await loadScheduleFor(resolved, {
           allowExtraction: inTime,
           signal: clock.signal,
@@ -434,8 +453,9 @@ export async function churchDetail(
   // lookup: a single Wikidata request is what stands between a cathedral with no
   // OSM `website` tag and an answer.
   if (!demo && !isDemoMode()) {
-    const resolved = await discoverWebsite(church);
-    if (resolved.website !== church.website) {
+    let resolved = await discoverWebsite(church);
+    resolved = await withPhoto(resolved);
+    if (resolved.website !== church.website || resolved.photo !== church.photo) {
       church = resolved;
       await putChurch(resolved);
     }

@@ -70,6 +70,55 @@ export const DIOCESE_DIRECTORIES: DioceseDirectory[] = [
     label: 'Catholic Bishops of Ireland parish finder',
     indexUrl: 'https://www.catholicbishops.ie/dioceses/',
   },
+
+  // ── Switzerland ────────────────────────────────────────────────────────
+  // Searches here came back blank, and the reason is structural: Switzerland has
+  // no national Mass-times portal. Its six dioceses devolve the job to
+  // *city-level* pastoral associations, which publish a combined timetable for
+  // every parish in the city. So the unit of coverage here is the city, not the
+  // diocese — and those pages are exactly the shape the extractor wants.
+  {
+    country: 'CH',
+    regions: ['zürich', 'zurich'],
+    label: 'Katholisch Stadt Zürich',
+    indexUrl: 'https://katholisch-zuerich.ch/pfarreien/',
+  },
+  {
+    country: 'CH',
+    regions: ['luzern', 'lucerne'],
+    label: 'Katholische Kirche Stadt Luzern',
+    indexUrl: 'https://www.kathluzern.ch/gottesdienste',
+  },
+  {
+    country: 'CH',
+    regions: ['basel'],
+    label: 'Römisch-Katholische Kirche Basel-Stadt',
+    indexUrl: 'https://www.rkk-bs.ch/pfarreien',
+  },
+  {
+    country: 'CH',
+    regions: ['bern'],
+    label: 'Katholische Kirche Region Bern',
+    indexUrl: 'https://www.kathbern.ch/pfarreien/',
+  },
+  {
+    country: 'CH',
+    regions: ['genève', 'geneve', 'geneva'],
+    label: 'Église catholique romaine à Genève',
+    indexUrl: 'https://www.eglisecatholique-ge.ch/paroisses/',
+  },
+  {
+    country: 'CH',
+    regions: ['lausanne', 'vaud'],
+    label: 'Église catholique dans le canton de Vaud',
+    indexUrl: 'https://www.cath-vd.ch/paroisses/',
+  },
+  {
+    country: 'CH',
+    regions: ['lugano', 'ticino'],
+    label: 'Diocesi di Lugano',
+    indexUrl: 'https://www.diocesilugano.ch/parrocchie/',
+  },
 ];
 
 /**
@@ -107,6 +156,11 @@ export const SEARCH_FALLBACKS: SearchFallback[] = [
     country: 'GB',
     label: 'Find a Mass in England and Wales',
     urlPattern: 'https://cbcew.org.uk/mass-finder/',
+  },
+  {
+    country: 'CH',
+    label: 'Swiss Catholic parish finder (kath.ch)',
+    urlPattern: 'https://www.kath.ch/pfarrei-finden/',
   },
 ];
 

@@ -1,3 +1,5 @@
+import type { ChurchPhoto } from './photos';
+
 /**
  * A Catholic church, as far as Mass Finder is concerned.
  *
@@ -34,6 +36,13 @@ export interface Church {
    */
   serviceTimes?: string;
   /**
+   * OSM `wikimedia_commons` tag — a Commons file or category for this building.
+   * The cheapest possible source of a photograph: no request needed to find it.
+   */
+  commonsTag?: string;
+  /** A photograph of the church, with the credit its licence requires. */
+  photo?: ChurchPhoto;
+  /**
    * Wikidata item id (`Q…`) from the OSM `wikidata` tag. Used to find an official
    * website for the ~70% of churches OSM has no `website` tag for.
    */
@@ -43,7 +52,7 @@ export interface Church {
    * the OSM `website` tag. Shown in the sources list, because a website we
    * inferred deserves less trust than one a mapper recorded.
    */
-  websiteSource?: 'osm-tag' | 'wikidata' | 'curated';
+  websiteSource?: 'osm-tag' | 'wikidata' | 'curated' | 'web-search';
   /**
    * Which Catholic Church this parish belongs to. The Roman calendar this app
    * computes applies to the Latin church; the Eastern Catholic churches keep

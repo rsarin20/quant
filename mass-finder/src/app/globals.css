@@ -622,3 +622,259 @@ footer {
   padding: 0.35rem 0;
   line-height: 1.4;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * The holy theme.
+ *
+ * The design principle: the *background* carries the season and the building, and
+ * the *reading surfaces* stay plain. Text never sits on a photograph or a
+ * gradient. That is not timidity — it is the only way to keep AAA contrast when
+ * the background is a photograph nobody has vetted, and the audience is people
+ * whose eyes are not what they were.
+ *
+ * So each church gets a coloured band (`.card-crown`), and the words live on
+ * opaque paper below it. The liturgical colour then threads through the card as an
+ * accent: the rule under the time, the tag borders, the left edge. Enough that a
+ * regular churchgoer reads violet for Lent at a glance; never so much that it
+ * carries meaning on its own, since colour alone excludes anyone who cannot see it
+ * — which is why every one of those cues also has words beside it.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.mass-card {
+  position: relative;
+  overflow: hidden;
+  border-top: none;
+}
+
+/* The church's own band. Height is generous on the lead card, where the reader is
+   deciding whether this is the right building, and slimmer further down a list. */
+.card-crown {
+  height: 96px;
+  margin: -1.5rem -1.5rem 1.25rem;
+  background: var(--church-background, linear-gradient(180deg, #1d2433, #131822));
+  background-size: cover;
+  background-position: center;
+  border-bottom: 4px solid var(--church-accent, #2f6f52);
+}
+
+.mass-card-lead .card-crown {
+  height: 168px;
+}
+
+.mass-card-photo .card-crown {
+  /* A photograph deserves more room than a gradient does. */
+  height: 200px;
+}
+
+.mass-card-lead.mass-card-photo .card-crown {
+  height: 260px;
+}
+
+/* The liturgical accent, threaded through. */
+.mass-card .mass-time {
+  border-bottom: 3px solid var(--church-accent-soft, #cfe3d8);
+  padding-bottom: 0.25rem;
+  display: inline-block;
+}
+
+.mass-card .tag {
+  border-color: var(--church-accent-soft, #cfe3d8);
+}
+
+.mass-card .eyebrow {
+  color: var(--church-accent, #2f6f52);
+  letter-spacing: 0.08em;
+}
+
+/* ── The photograph, with the credit its licence requires ─────────────────── */
+
+.church-photo {
+  margin: 1.25rem 0 0;
+}
+
+.church-photo img {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #e8e6e1;
+}
+
+.church-photo figcaption {
+  /* Small, but never below 14px: a credit nobody can read is not a credit. */
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-top: 0.4rem;
+  color: var(--text-muted, #55524c);
+}
+
+/* ── Browse: country, city, town, map ─────────────────────────────────────── */
+
+.browse {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--surface, #fff);
+  border: 2px solid var(--border, #d8d4cc);
+  border-radius: 14px;
+}
+
+.browse-lead {
+  margin: 0 0 1.25rem;
+}
+
+.browse-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.browse-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 14rem;
+}
+
+.browse-field-wide {
+  flex: 2 1 20rem;
+}
+
+.browse-label {
+  font-weight: 600;
+}
+
+/* 60px targets and 20px type, as everywhere. A dropdown an older user cannot hit
+   is a dropdown that does not exist. */
+.browse-field select,
+.browse-field input {
+  font-size: 1.25rem;
+  min-height: 60px;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border, #d8d4cc);
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+}
+
+.browse-field select:focus-visible,
+.browse-field input:focus-visible {
+  outline: 3px solid var(--focus, #1b4f72);
+  outline-offset: 2px;
+}
+
+.browse-go {
+  flex: 0 0 auto;
+  min-height: 60px;
+}
+
+.browse-status {
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+.browse-map-toggle {
+  margin-top: 0.5rem;
+}
+
+.browse-map {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── The map ──────────────────────────────────────────────────────────────── */
+
+.map-frame {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--border, #d8d4cc);
+  border-radius: 12px;
+  background: #e8e6e1;
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-frame img {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* The pin marks the exact centre — the point the search runs from — so it must be
+   unmistakable and must not move with the tiles. */
+.map-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: var(--church-accent, #b3261e);
+  border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
+
+/* Every drag has a button equivalent, because a map you can only drag is a map
+   that excludes anyone who cannot drag. */
+.map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn-map {
+  min-width: 60px;
+  min-height: 60px;
+  font-size: 1.5rem;
+  padding: 0;
+  background: var(--surface, #fff);
+  border: 2px solid var(--border, #d8d4cc);
+}
+
+.map-readout {
+  font-size: 1rem;
+  color: var(--text-muted, #55524c);
+  margin: 0.5rem 0 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The detail page's header band. Taller than a card's crown because this page is
+   where somebody decides whether to travel, and the photograph is doing real work
+   at that moment rather than decorating a list. */
+.church-hero {
+  height: 220px;
+  margin: 1rem -1rem 1.25rem;
+  border-radius: 14px;
+  background: var(--church-background, linear-gradient(180deg, #1d2433, #131822));
+  background-size: cover;
+  background-position: center;
+  border-bottom: 5px solid var(--church-accent, #2f6f52);
+}
+
+@media (min-width: 40rem) {
+  .church-hero {
+    height: 300px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.church-photo-credit {
+  font-size: 0.875rem;
+}

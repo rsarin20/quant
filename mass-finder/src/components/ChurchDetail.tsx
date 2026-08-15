@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { ChurchDetailResponse } from '@/lib/api-types';
 import { RITE_LABELS } from '@/lib/churches/types';
 import { directionsUrl, formatAddress, mapUrl, telUrl } from '@/lib/maps';
+import { themeStyle } from '@/lib/theme';
 import { friendlyTime } from '@/lib/schedule/timezone';
 
 import { relativeDayLabel } from './MassCard';
@@ -68,8 +69,26 @@ export default function ChurchDetail({ detail }: { detail: ChurchDetailResponse 
         ← Back to search
       </a>
 
+      {/*
+        The church's own header. A photograph where Commons has one — which is how
+        a stranger confirms they are looking at the right building before they set
+        off — otherwise the stained-glass field, both under today's liturgical
+        colour. The name sits on opaque paper beneath it, never on the image.
+      */}
+      <div className="church-hero" style={themeStyle(card.theme)} aria-hidden="true" />
+
       <h1>{church.name}</h1>
       {address ? <p className="church-meta">{address}</p> : null}
+      {church.photo ? (
+        <p className="church-meta church-photo-credit">
+          <a href={church.photo.sourceUrl} target="_blank" rel="noreferrer">
+            Photograph
+          </a>
+          {church.photo.author ? ` by ${church.photo.author}` : ''}
+          {church.photo.license ? ` · ${church.photo.license}` : ''}
+          {' · Wikimedia Commons'}
+        </p>
+      ) : null}
       {church.rite !== 'roman' && church.rite !== 'unknown' ? (
         <p className="church-meta">{RITE_LABELS[church.rite]}</p>
       ) : null}

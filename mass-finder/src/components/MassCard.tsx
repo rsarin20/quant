@@ -5,6 +5,7 @@ import { formatDistance, usesImperial } from '@/lib/churches/geo';
 import { RITE_LABELS } from '@/lib/churches/types';
 import { directionsUrl, formatAddress, telUrl } from '@/lib/maps';
 import { friendlyTime } from '@/lib/schedule/timezone';
+import { themeStyle } from '@/lib/theme';
 
 /**
  * One church, with its next Mass.
@@ -103,7 +104,21 @@ export default function MassCard({
   const address = formatAddress(church);
 
   return (
-    <article className={`mass-card${lead ? ' mass-card-lead' : ''}`}>
+    <article
+      className={`mass-card${lead ? ' mass-card-lead' : ''}${
+        card.theme.fromPhoto ? ' mass-card-photo' : ''
+      }`}
+      style={themeStyle(card.theme)}
+    >
+      {/*
+        The church's own band: its photograph if Commons has one, otherwise a
+        stained-glass field derived from its identity — both tinted by the
+        liturgical colour of the Mass being announced. Decorative, so it is hidden
+        from assistive technology; the photograph proper, with its credit, sits
+        further down where it can be described.
+      */}
+      <div className="card-crown" aria-hidden="true" />
+
       {church.example ? (
         <p className="notice notice-loud" style={{ marginBottom: '1rem' }}>
           Example data. This is not a real church and these are not real Mass times.
@@ -179,6 +194,33 @@ export default function MassCard({
           </a>
         ) : null}
       </div>
+
+      {church.photo ? (
+        <figure className="church-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={church.photo.url}
+            alt={`${church.name}, photographed`}
+            loading="lazy"
+            width={640}
+            height={360}
+          />
+          {/*
+            The credit is not optional. Commons images are freely licensed, and
+            nearly every one of those licences requires naming the author. An app
+            built on showing where its facts came from cannot strip a
+            photographer's name off their picture.
+          */}
+          <figcaption>
+            <a href={church.photo.sourceUrl} target="_blank" rel="noreferrer">
+              Photo
+            </a>
+            {church.photo.author ? ` by ${church.photo.author}` : ''}
+            {church.photo.license ? ` · ${church.photo.license}` : ''}
+            {' · via Wikimedia Commons'}
+          </figcaption>
+        </figure>
+      ) : null}
 
       <div
         className={`reliability reliability-${card.reliability.tone}`}

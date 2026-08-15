@@ -1,4 +1,5 @@
 import type { Church } from './churches/types';
+import type { ChurchTheme } from './theme';
 import type { DayExplanation } from './liturgy/explain';
 import type { LiturgicalDay } from './liturgy/types';
 import type { MassOccurrence, ScheduleQuality } from './schedule/types';
@@ -36,6 +37,14 @@ export interface ChurchCard {
    * actually asked.
    */
   whereElseToLook?: Array<{ label: string; url: string }>;
+  /**
+   * The card's own background and accent — the church's photograph when it has
+   * one, otherwise a stained-glass field derived from its identity, both tinted by
+   * today's liturgical colour. Computed on the server so the colour matches the
+   * liturgical day the server already worked out, rather than being guessed again
+   * in the browser.
+   */
+  theme: ChurchTheme;
 }
 
 export interface NearbyResponse {

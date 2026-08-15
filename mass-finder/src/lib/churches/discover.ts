@@ -1,4 +1,6 @@
 import { withCuratedWebsite } from '../directory/registry';
+import { findChurchPhoto } from './photos';
+import { findWebsiteBySearch, isSearchConfigured } from './searchDiscovery';
 import type { Church } from './types';
 import { officialWebsiteFor } from './wikidata';
 
@@ -28,6 +30,8 @@ export interface DiscoverOptions {
   signal?: AbortSignal;
   /** Skip the network lookup — used by the offline tests. */
   skipWikidata?: boolean;
+  /** Skip the search-engine lookup, whatever is configured. */
+  skipSearch?: boolean;
 }
 
 export async function discoverWebsite(
@@ -39,28 +43,79 @@ export async function discoverWebsite(
   if (curated.website) return curated;
 
   // 3: one small request, and only when OSM gave us an item to look up.
-  if (!church.wikidata || opts.skipWikidata) return curated;
+  if (church.wikidata && !opts.skipWikidata) {
+    const website = await officialWebsiteFor(church.wikidata, {
+      fetchImpl: opts.fetchImpl,
+      signal: opts.signal,
+    });
+    if (website) {
+      return {
+        ...curated,
+        website,
+        websiteSource: 'wikidata',
+        sources: [
+          ...curated.sources,
+          {
+            kind: 'seed-data',
+            url: `https://www.wikidata.org/wiki/${church.wikidata}`,
+            fetchedAt: new Date().toISOString(),
+            detail: `Official website from Wikidata item ${church.wikidata}`,
+          },
+        ],
+      };
+    }
+  }
 
-  const website = await officialWebsiteFor(church.wikidata, {
+  // 4: ask a search engine, if one is configured. Last because it is the only
+  // step that costs money, and because a search engine will confidently return
+  // *something* for a church it has never heard of — so it is the step most in
+  // need of the verification the crawler then applies.
+  if (!opts.skipSearch && isSearchConfigured()) {
+    const found = await findWebsiteBySearch(church, {
+      fetchImpl: opts.fetchImpl,
+      signal: opts.signal,
+    });
+    if (found) {
+      return {
+        ...curated,
+        website: found.url,
+        websiteSource: 'web-search',
+        sources: [
+          ...curated.sources,
+          {
+            kind: 'seed-data',
+            url: found.url,
+            fetchedAt: new Date().toISOString(),
+            detail: `Website found by searching the web for “${found.query}”`,
+          },
+        ],
+      };
+    }
+  }
+
+  return curated;
+}
+
+/**
+ * Attach a photograph, if one can be found.
+ *
+ * Separate from the website hunt because it is worth doing even when we already
+ * know the website, and because a picture and a schedule fail independently: a
+ * church can have an excellent photograph and an unreadable site, or the reverse.
+ */
+export async function withPhoto(
+  church: Church,
+  opts: DiscoverOptions = {},
+): Promise<Church> {
+  if (church.photo) return church;
+  if (!church.commonsTag && !church.wikidata) return church;
+  const photo = await findChurchPhoto({
+    commonsTag: church.commonsTag,
+    wikidata: church.wikidata,
     fetchImpl: opts.fetchImpl,
     signal: opts.signal,
   });
-  if (!website) return curated;
-
-  return {
-    ...curated,
-    website,
-    websiteSource: 'wikidata',
-    sources: [
-      ...curated.sources,
-      {
-        kind: 'seed-data',
-        url: `https://www.wikidata.org/wiki/${church.wikidata}`,
-        fetchedAt: new Date().toISOString(),
-        detail: `Official website from Wikidata item ${church.wikidata}`,
-      },
-    ],
-  };
+  return photo ? { ...church, photo } : church;
 }
 
 /**

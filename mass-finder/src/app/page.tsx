@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import BrowsePanel from '@/components/BrowsePanel';
 import MassCard from '@/components/MassCard';
 import type { NearbyResponse } from '@/lib/api-types';
 import type { Place } from '@/lib/churches/geocode';
@@ -175,6 +176,17 @@ export default function HomePage() {
           </div>
         ) : null}
       </section>
+
+      {/*
+        Browsing, offered on every search rather than hidden on another page. The
+        reader who has just been told "no churches found near you" is exactly the
+        reader who needs to look somewhere else, and making them navigate away to do
+        it loses most of them.
+      */}
+      <BrowsePanel
+        initial={origin}
+        onChoose={({ lat, lon, label }) => search(lat, lon, label)}
+      />
 
       {error ? (
         <p className="notice notice-loud" role="alert">

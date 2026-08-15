@@ -172,3 +172,42 @@ test('a language heading before every time applies to all of them', () => {
   assert.ok(rules.length >= 2);
   assert.ok(rules.every((r) => r.language === 'es'));
 });
+
+// ── German-language parishes, which is why Switzerland was blank ────────────
+
+test('a German Gottesdienst schedule is read', () => {
+  // Swiss and German parishes publish "Gottesdienste", never "Mass times". The
+  // word was missing from the vocabulary, so every line on every German-language
+  // parish site was discarded and whole countries came back empty.
+  const page = [
+    'Gottesdienste',
+    'Sonntag: 10.00 Uhr',
+    'Samstag: 18.00 Uhr',
+    'Dienstag bis Freitag: 8.30 Uhr',
+  ].join('\n');
+  assert.deepEqual(slots(page), ['0@10:00', '2345@08:30', '6@18:00']);
+});
+
+test('a Wortgottesdienst is not a Mass, despite containing the word', () => {
+  // The Liturgy of the Word and a Communion service are not Mass, and in a
+  // country short of priests they appear on the same timetable. Sending somebody
+  // to one expecting Mass is the failure this guards.
+  const page = [
+    'Gottesdienste',
+    'Sonntag: 10.00 Uhr',
+    'Mittwoch: Wortgottesdienst 9.00 Uhr',
+    'Freitag: Kommunionfeier 9.00 Uhr',
+  ].join('\n');
+  assert.deepEqual(slots(page), ['0@10:00']);
+});
+
+test('German devotions are not read as Mass', () => {
+  for (const line of [
+    'Freitag: Rosenkranz 17.30 Uhr',
+    'Donnerstag: Anbetung 18.00 Uhr',
+    'Samstag: Beichte 17.00 Uhr',
+    'Sonntag: Vesper 17.00 Uhr',
+  ]) {
+    assert.deepEqual(slots(line), [], line);
+  }
+});

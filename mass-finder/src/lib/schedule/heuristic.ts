@@ -49,6 +49,21 @@ const MASS_WORDS = [
   'eucharist',
   'eucharistie',
   'eucaristía',
+  // German-speaking Europe, which is why Switzerland came back blank. A Swiss or
+  // German parish does not publish "Mass times" — it publishes *Gottesdienste*,
+  // and that word was not in this list, so every schedule line on every
+  // German-language parish site failed the "is this about Mass?" test and was
+  // discarded. Coverage in a country can hinge on a single missing noun.
+  'gottesdienst',
+  'gottesdienste',
+  'eucharistiefeier',
+  'messfeier',
+  'messen',
+  'hl. messe',
+  'heilige messe',
+  'sonntagsmesse',
+  'abendmesse',
+  'pfarreigottesdienst',
   'liturgy',
   'divine liturgy',
   'qurbana',
@@ -88,6 +103,15 @@ const NON_MASS_WORDS = [
   'confessione',
   'beichte',
   'spowied',
+  // A Wortgottesdienst is the Liturgy of the Word and a Kommunionfeier is a
+  // Communion service: neither is a Mass, and in a country short of priests they
+  // are common enough that treating them as Mass would send somebody to a
+  // service where no Mass is celebrated. Both are matched here rather than in the
+  // Mass list, and the non-Mass test runs first, so "Wortgottesdienst" cannot be
+  // rescued by the "gottesdienst" inside it.
+  'wortgottesdienst',
+  'wortgottesfeier',
+  'kommunionfeier',
   // Eucharistic devotions that are not Mass.
   'adoration',
   'adoración',
@@ -111,6 +135,8 @@ const NON_MASS_WORDS = [
   'vísperas',
   'visperas',
   'laudes',
+  'vesper',
+  'komplet',
   // Other devotions.
   'rosary',
   'rosario',
@@ -119,6 +145,13 @@ const NON_MASS_WORDS = [
   'way of the cross',
   'via crucis',
   'chaplet',
+  'andacht',
+  'rosenkranz',
+  'kreuzweg',
+  'taufe',
+  'trauung',
+  'beerdigung',
+  'abdankung',
   'baptism',
   'baptisms',
   'wedding',
